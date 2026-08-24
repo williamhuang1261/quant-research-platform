@@ -1,0 +1,26 @@
+# Maven
+target/
+*.jar
+*.war
+
+# Native build output
+native/build/
+*.o
+*.so
+*.dylib
+*.dll
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local configuration
+.env

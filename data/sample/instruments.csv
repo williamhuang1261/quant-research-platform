@@ -1,0 +1,4 @@
+symbol,currency,asset_class,timeframe,file
+SYNA,USD,EQUITY,1d,SYNA_1d.csv
+SYNB,USD,EQUITY,1d,SYNB_1d.csv
+SYNETF,USD,ETF,1d,SYNETF_1d.csv
