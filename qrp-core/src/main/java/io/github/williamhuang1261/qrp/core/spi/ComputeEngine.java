@@ -19,6 +19,17 @@ public interface ComputeEngine extends AutoCloseable {
     boolean isAvailable();
 
     /**
+     * Why this engine cannot run, or empty when it can.
+     *
+     * <p>Part of the contract rather than of one implementation: "the fast path
+     * is off" is a question an operator asks, and an answer that requires
+     * reading source code is not an answer. See {@code docs/runbook.md}.
+     */
+    default java.util.Optional<String> unavailableReason() {
+        return isAvailable() ? java.util.Optional.empty() : java.util.Optional.of("unavailable");
+    }
+
+    /**
      * Trailing arithmetic mean over {@code window} values.
      *
      * @return an array of {@code values.length} elements whose first

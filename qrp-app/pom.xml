@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.williamhuang1261.qrp</groupId>
+    <artifactId>qrp-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>qrp-app</artifactId>
+  <name>QRP :: App</name>
+  <description>
+    The two front ends: a command line runner and a JavaFX workbench. This is the
+    only module that assembles every implementation, which is why it is also the
+    only one that depends on them.
+  </description>
+
+  <!-- OpenJFX publishes one jar per platform. Selecting the classifier by profile
+       keeps the build to plain Maven, with no resolver extension to install. -->
+  <profiles>
+    <profile>
+      <id>javafx-mac-aarch64</id>
+      <activation><os><family>mac</family><arch>aarch64</arch></os></activation>
+      <properties><javafx.classifier>mac-aarch64</javafx.classifier></properties>
+    </profile>
+    <profile>
+      <id>javafx-mac-x86_64</id>
+      <activation><os><family>mac</family><arch>x86_64</arch></os></activation>
+      <properties><javafx.classifier>mac</javafx.classifier></properties>
+    </profile>
+    <profile>
+      <id>javafx-linux-x86_64</id>
+      <activation><os><family>unix</family><name>linux</name><arch>amd64</arch></os></activation>
+      <properties><javafx.classifier>linux</javafx.classifier></properties>
+    </profile>
+    <profile>
+      <id>javafx-linux-aarch64</id>
+      <activation><os><family>unix</family><name>linux</name><arch>aarch64</arch></os></activation>
+      <properties><javafx.classifier>linux-aarch64</javafx.classifier></properties>
+    </profile>
+    <profile>
+      <id>javafx-windows</id>
+      <activation><os><family>windows</family></os></activation>
+      <properties><javafx.classifier>win</javafx.classifier></properties>
+    </profile>
+  </profiles>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-data</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-engine</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-stats</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- Implementations the app never names in code: both arrive through
+         ServiceLoader. Runtime scope is deliberate — nothing here imports them,
+         and it is also on the test classpath. Declaring either a second time at
+         test scope would override this one and silently empty the registry.
+
+         Note: `javafx:run` forks a JVM that puts these on the module path, where
+         ServiceLoader does not surface their providers, so the workbench started
+         that way runs on the Java compute engine. Launch it through
+         `exec:java` (see the `workbench` command) to get the native kernel.
+         Changing the scope does not help; this is a launcher property. -->
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-indicators</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-native</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-controls</artifactId>
+      <version>${javafx.version}</version>
+      <classifier>${javafx.classifier}</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-graphics</artifactId>
+      <version>${javafx.version}</version>
+      <classifier>${javafx.classifier}</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-base</artifactId>
+      <version>${javafx.version}</version>
+      <classifier>${javafx.classifier}</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-swing</artifactId>
+      <version>${javafx.version}</version>
+      <classifier>${javafx.classifier}</classifier>
+    </dependency>
+  </dependencies>
+
+  <properties>
+    <exec.mainClass>io.github.williamhuang1261.qrp.app.QrpCli</exec.mainClass>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>--enable-native-access=ALL-UNNAMED</argLine>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <configuration>
+          <!-- A property, not a literal: a literal here would shadow
+               -Dexec.mainClass and silently run the CLI when another main
+               was asked for. -->
+          <mainClass>${exec.mainClass}</mainClass>
+          <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+        </configuration>
+      </plugin>
+      <!-- JavaFX needs its own forked JVM with the modules on the module path;
+           exec:java runs main on a secondary thread, which the macOS toolkit
+           refuses. -->
+      <plugin>
+        <groupId>org.openjfx</groupId>
+        <artifactId>javafx-maven-plugin</artifactId>
+        <version>0.0.8</version>
+        <configuration>
+          <mainClass>io.github.williamhuang1261.qrp.app.workbench.Workbench</mainClass>
+          <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+          <options>
+            <!-- Without this the FFM lookup for the compute kernel is refused in
+                 the forked JVM, and the workbench silently runs on the Java
+                 engine while the CLI runs on the native one. -->
+            <option>--enable-native-access=ALL-UNNAMED</option>
+          </options>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

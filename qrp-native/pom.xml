@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.williamhuang1261.qrp</groupId>
+    <artifactId>qrp-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>qrp-native</artifactId>
+  <name>QRP :: Native</name>
+  <description>
+    Optional OpenMP compute kernel, reached through the foreign function API.
+    Absent library, absent toolchain and absent OpenMP are all non-events: the
+    platform falls back to the Java engine.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- Test scope: the equivalence tests compare against the portable engine. -->
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-stats</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- The FFM downcalls are restricted methods; without this the JVM
+               prints a warning on every run and will refuse them in a future
+               release. -->
+          <argLine>--enable-native-access=ALL-UNNAMED</argLine>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <configuration>
+          <mainClass>io.github.williamhuang1261.qrp.nativeengine.NativeBenchmark</mainClass>
+          <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+          <!-- The benchmark compares against the Java engine, which is a test
+               dependency: qrp-native itself compiles against the SPI alone. -->
+          <classpathScope>test</classpathScope>
+          <commandlineArgs>--enable-native-access=ALL-UNNAMED</commandlineArgs>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

@@ -100,7 +100,8 @@ public final class CsvMarketDataProvider implements MarketDataProvider {
                 throw new MarketDataException(location(manifest, lineNumber) + " " + e.getMessage(), e);
             }
         }
-        return new CsvMarketDataProvider(root, Map.copyOf(entries), List.copyOf(instruments));
+        return new CsvMarketDataProvider(
+                root, java.util.Collections.unmodifiableMap(entries), List.copyOf(instruments));
     }
 
     @Override

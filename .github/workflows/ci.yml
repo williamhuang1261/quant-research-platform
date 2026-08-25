@@ -24,5 +24,17 @@ jobs:
           java-version: '25'
           cache: maven
 
+      # Optional by design: if this fails, the equivalence tests skip and the
+      # build still passes on the Java engine. That is the supported state for
+      # anyone without a C++ toolchain, so CI exercises it rather than assuming.
+      - name: Install OpenMP runtime (macOS)
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        run: brew install libomp
+
+      - name: Build the native kernel
+        continue-on-error: true
+        run: make -C native
+
       - name: Build and test
         run: mvn -B --no-transfer-progress verify

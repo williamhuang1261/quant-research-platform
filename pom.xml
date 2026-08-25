@@ -19,12 +19,18 @@
   <modules>
     <module>qrp-core</module>
     <module>qrp-data</module>
+    <module>qrp-indicators</module>
+    <module>qrp-stats</module>
+    <module>qrp-engine</module>
+    <module>qrp-native</module>
+    <module>qrp-app</module>
   </modules>
 
   <properties>
     <maven.compiler.release>25</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.11.4</junit.version>
+    <javafx.version>25</javafx.version>
   </properties>
 
   <dependencyManagement>
