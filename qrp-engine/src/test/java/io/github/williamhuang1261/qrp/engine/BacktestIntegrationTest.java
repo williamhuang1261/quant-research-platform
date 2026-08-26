@@ -47,7 +47,7 @@ class BacktestIntegrationTest {
                 new MovingAverageCrossoverStrategy(),
                 Params.of(MovingAverageCrossoverStrategy.FAST, 20)
                         .with(MovingAverageCrossoverStrategy.SLOW, 50),
-                costs,
+                new MarketOpenExecutionModel(costs),
                 100_000.0));
     }
 

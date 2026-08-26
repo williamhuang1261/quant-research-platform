@@ -69,6 +69,11 @@
       <artifactId>qrp-stats</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-options</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <!-- Implementations the app never names in code: both arrive through
          ServiceLoader. Runtime scope is deliberate — nothing here imports them,

@@ -86,9 +86,43 @@ class QrpCliTest {
     }
 
     @Test
+    @DisplayName("options prices the bundled synthetic chain, fits its surface and reports it clean")
+    void optionsPricesTheBundledChain() {
+        Run result = invoke("options", "--data", "../data/sample");
+
+        assertEquals(0, result.status(), result.err());
+        assertTrue(result.out().contains("volatility surface: SYNOPT"), result.out());
+        assertTrue(result.out().contains("36 quotes, 4 expiries, 9 strikes"), result.out());
+        assertTrue(result.out().contains("no-arbitrage diagnostics: clean"), result.out());
+        // A spot check of one cell against a hand-verified value, so a refactor
+        // that quietly changes the interpolation math fails a specific number,
+        // not just the section header.
+        assertTrue(result.out().contains("23.05%"), result.out());
+    }
+
+    @Test
+    @DisplayName("options carries its own caveats about the flat rate and no extrapolation")
+    void optionsReportCarriesCaveats() {
+        Run result = invoke("options", "--data", "../data/sample");
+
+        assertTrue(result.out().contains("RatesCurve"), result.out());
+        assertTrue(result.out().contains("does not extrapolate"), result.out());
+    }
+
+    @Test
+    @DisplayName("an unknown underlying is an error with the available ones listed")
+    void unknownUnderlyingIsExplained() {
+        Run result = invoke("options", "--data", "../data/sample", "--underlying", "NOPE");
+
+        assertEquals(2, result.status());
+        assertTrue(result.err().contains("SYNOPT"), result.err());
+    }
+
+    @Test
     @DisplayName("bad usage exits non-zero and prints why")
     void badUsageIsRejected() {
         assertEquals(2, invoke("run", "--nope").status());
+        assertEquals(2, invoke("options", "--nope").status());
         assertEquals(2, invoke("frobnicate").status());
         assertEquals(1, invoke().status());
         assertEquals(0, invoke("--help").status());

@@ -10,6 +10,7 @@ import io.github.williamhuang1261.qrp.data.CsvMarketDataProvider;
 import io.github.williamhuang1261.qrp.engine.BacktestEngine;
 import io.github.williamhuang1261.qrp.engine.BacktestRequest;
 import io.github.williamhuang1261.qrp.engine.BacktestResult;
+import io.github.williamhuang1261.qrp.engine.MarketOpenExecutionModel;
 import io.github.williamhuang1261.qrp.stats.ComputeEngines;
 import io.github.williamhuang1261.qrp.stats.EquityCurve;
 import io.github.williamhuang1261.qrp.stats.MonteCarloSimulation;
@@ -52,7 +53,8 @@ public final class BacktestRunner {
                 .require(arguments.strategyId());
 
         BacktestResult result = BacktestEngine.run(new BacktestRequest(
-                series, strategy, arguments.params(), arguments.costs(), arguments.initialCash()));
+                series, strategy, arguments.params(),
+                new MarketOpenExecutionModel(arguments.costs()), arguments.initialCash()));
 
         ComputeEngine engine = ComputeEngines.best();
         Optional<MonteCarloSimulation.Report> monteCarlo = arguments.monteCarloPaths() > 0

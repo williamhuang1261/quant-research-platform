@@ -21,8 +21,11 @@
     <module>qrp-data</module>
     <module>qrp-indicators</module>
     <module>qrp-stats</module>
+    <module>qrp-options</module>
     <module>qrp-engine</module>
     <module>qrp-native</module>
+    <module>qrp-portfolio</module>
+    <module>qrp-report</module>
     <module>qrp-app</module>
   </modules>
 

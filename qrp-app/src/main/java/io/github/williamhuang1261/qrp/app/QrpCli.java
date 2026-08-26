@@ -44,6 +44,7 @@ public final class QrpCli {
                 case "run" -> runBacktest(rest, out);
                 case "list" -> listInstalled(rest, out);
                 case "workbench" -> openWorkbench(rest);
+                case "options" -> runOptions(rest, out);
                 default -> {
                     err.println("unknown command: " + command);
                     err.println(CliArguments.usage());
@@ -71,6 +72,17 @@ public final class QrpCli {
         javafx.application.Application.launch(
                 io.github.williamhuang1261.qrp.app.workbench.Workbench.class,
                 args.toArray(String[]::new));
+        return 0;
+    }
+
+    private static int runOptions(List<String> args, PrintStream out) {
+        OptionsArguments arguments = OptionsArguments.parse(args);
+        OptionsRunner.Outcome outcome = OptionsRunner.run(arguments);
+        out.print(OptionsReportFormatter.format(outcome));
+        if (arguments.exportCsv() != null) {
+            SurfaceGridExporter.writeCsv(outcome, arguments.exportCsv());
+            out.println("  wrote surface grid to " + arguments.exportCsv().toAbsolutePath());
+        }
         return 0;
     }
 

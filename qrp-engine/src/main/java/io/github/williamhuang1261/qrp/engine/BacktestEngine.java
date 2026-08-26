@@ -8,6 +8,7 @@ import io.github.williamhuang1261.qrp.core.spi.Strategy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Runs one strategy over one series, bar by bar.
@@ -41,7 +42,7 @@ public final class BacktestEngine {
 
         BarSeries series = request.series();
         Strategy strategy = request.strategy();
-        CostModel costs = request.costs();
+        ExecutionModel execution = request.execution();
         int barCount = series.size();
 
         strategy.onStart(series, request.params());
@@ -66,24 +67,12 @@ public final class BacktestEngine {
 
             // 1. Execute what the previous bar decided, at this bar's open.
             if (pendingTarget != null) {
-                double reference = bar.open();
-                // Direction first, then size at the price actually paid. Sizing at the
-                // reference price and filling above it overshoots by exactly the
-                // concession, which shows up as negative cash: the account would have
-                // borrowed to pay its own slippage.
-                double provisional = targetShares(pendingTarget, cash + shares * reference, reference);
-                boolean buying = provisional > shares;
-                double fillPrice = costs.fillPrice(reference, buying);
-                double desiredShares = targetShares(pendingTarget, cash + shares * fillPrice, fillPrice);
-                double delta = desiredShares - shares;
-
-                // Degenerate only if the concession reverses the direction, which no
-                // realistic slippage does; trading through it would fill the wrong way.
-                if (delta != 0.0 && (delta > 0.0) == buying) {
-                    double commission = costs.commission(delta * fillPrice);
-                    cash -= delta * fillPrice + commission;
-                    shares += delta;
-                    trades.add(new Trade(i, bar.timestamp(), delta, fillPrice, reference, commission));
+                Optional<ExecutionModel.Fill> fill = execution.fill(bar, pendingTarget, cash, shares);
+                if (fill.isPresent()) {
+                    ExecutionModel.Fill f = fill.get();
+                    cash -= f.deltaShares() * f.price() + f.commission();
+                    shares += f.deltaShares();
+                    trades.add(new Trade(i, bar.timestamp(), f.deltaShares(), f.price(), bar.open(), f.commission()));
                 }
                 currentTarget = pendingTarget;
                 pendingTarget = null;
@@ -109,17 +98,5 @@ public final class BacktestEngine {
 
         return new BacktestResult(
                 series, DoubleSeries.of(equity), DoubleSeries.of(exposure), trades, metrics);
-    }
-
-    /**
-     * Whole shares whose market value is closest to the target fraction of
-     * equity without exceeding it. Truncation, not rounding: overshooting the
-     * target would borrow cash the account was never given.
-     */
-    private static double targetShares(double targetExposure, double equity, double price) {
-        if (equity <= 0.0) {
-            return 0.0;
-        }
-        return (double) (long) (targetExposure * equity / price);
     }
 }

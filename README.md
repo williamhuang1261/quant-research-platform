@@ -20,6 +20,7 @@ Needs a JDK 25 and Maven. No accounts, no API keys, no network.
 mvn -q install                                          # build and test everything
 mvn -q -pl qrp-app exec:java -Dexec.args="run"          # backtest + report
 mvn -q -pl qrp-app exec:java -Dexec.args="workbench"    # the window above
+mvn -q -pl qrp-app exec:java -Dexec.args="options"      # price, fit, diagnose a chain
 ```
 
 Optional, for the native compute kernel:
@@ -66,6 +67,55 @@ the last one: resampling the same returns in blocks says that two thirds of the
 plausible orderings also lose. One backtest is an anecdote — the distribution
 around it is the actual finding.
 
+## Options: pricing, Greeks, implied volatility, the surface
+
+```
+  ------------------------------------------------------------
+  volatility surface: SYNOPT, valued 2026-01-02
+  36 quotes, 4 expiries, 9 strikes
+  ------------------------------------------------------------
+  strike      2026-04-03  2026-07-04  2027-01-02  2028-01-02
+  70.00           40.46%      41.29%      42.95%      46.28%
+  100.00          23.05%      24.09%      26.12%      30.08%
+  130.00          16.91%      17.93%      19.89%      23.73%
+  ------------------------------------------------------------
+  no-arbitrage diagnostics: clean
+  ------------------------------------------------------------
+  Vol is interpolated in total variance from a chain that discounts each
+  quote at its own flat rate; RatesCurve exists (qrp-options) but is not
+  wired into this surface's IV solving yet.
+  Surface fit does not extrapolate past the quoted strikes or expiries.
+  ------------------------------------------------------------
+```
+
+`qrp-options` prices European and American options through three
+cross-validated engines -- Black-Scholes-Merton with analytic Greeks,
+Cox-Ross-Rubinstein binomial trees, and antithetic-variate Monte Carlo -- fits
+an implied volatility surface from a chain, checks it for the three static
+no-arbitrage conditions that need no model (butterfly convexity, calendar
+monotonicity in total variance, put-call parity), and discounts against a real
+US Treasury constant-maturity curve, `RatesCurve`, carrying duration, DV01 and
+convexity.
+
+![The SYNOPT volatility surface](docs/vol-surface.png)
+
+*Rendered by `tools/plot_surface.py` from a CSV `qrp options --export` writes
+-- run `mvn -q -pl qrp-app exec:java -Dexec.args="options --export /tmp/grid.csv"`
+then `python3 tools/plot_surface.py /tmp/grid.csv docs/vol-surface.png`.*
+
+The chain is **synthetic**, `SYNOPT`, generated from a known, hand-specified
+volatility function -- a quadratic in log-moneyness with a sloped
+at-the-money level, explicitly not claimed to be a real SVI parameterization.
+That is what makes `VolatilitySurfaceTest`'s headline check possible: the
+surface is refit from only the resulting market prices, with no access to the
+generating function, and the test asserts it recovers the function it was
+generated from at every quoted grid point, to 1e-6. See
+[`docs/spec-options.md`](docs/spec-options.md) for the module's design
+decisions (D1-D9), including why carry is expressed as a dividend yield
+rather than a cost-of-carry parameter, why the degenerate zero-volatility case
+is priced rather than rejected, and why `BondAnalytics` uses continuous
+compounding instead of the bond-market bond-equivalent convention.
+
 ## Architecture
 
 ```mermaid
@@ -75,6 +125,7 @@ graph TD
     ind["qrp-indicators<br/>sma, ema, rsi, volatility"]
     stats["qrp-stats<br/>bootstrap, Monte Carlo, jackknife"]
     engine["qrp-engine<br/>bar loop, fills, metrics"]
+    options["qrp-options<br/>pricing, Greeks, IV surface, rates"]
     native["qrp-native<br/>OpenMP kernel via FFM"]
     app["qrp-app<br/>CLI + JavaFX workbench"]
 
@@ -83,10 +134,13 @@ graph TD
     stats --> core
     engine --> core
     engine --> stats
+    options --> core
+    options --> stats
     native --> core
     app --> core
     app --> engine
     app --> stats
+    app --> options
     app -. runtime only .-> ind
     app -. runtime only .-> native
 ```
@@ -104,8 +158,9 @@ boundary is enforced by the build rather than described in a document.
 | `qrp-indicators` | SMA, EMA, RSI, rolling volatility, DuPont, CPI real-price adjuster | [spec](docs/spec-indicators.md) |
 | `qrp-engine` | Event-driven bar loop, cost model, portfolio accounting, metrics | [spec](docs/spec-engine.md) |
 | `qrp-stats` | Block bootstrap, Monte Carlo paths, jackknife correlation, VaR/ES | [spec](docs/spec-stats.md) |
+| `qrp-options` | Black-Scholes-Merton, binomial trees, Monte Carlo, implied vol, the surface, no-arbitrage diagnostics, the Treasury curve | [spec](docs/spec-options.md) |
 | `qrp-native` | C++17 + OpenMP kernel bound through the foreign function API | [runbook](docs/runbook.md) |
-| `qrp-app` | `run` / `list` / `workbench` | [spec](docs/spec-app.md) |
+| `qrp-app` | `run` / `list` / `workbench` / `options` | [spec](docs/spec-app.md) |
 
 ## What is deliberately not here
 
@@ -118,6 +173,11 @@ boundary is enforced by the build rather than described in a document.
   motion, named `SYNA`, `SYNB`, `SYNETF` so nobody mistakes a demo for a
   backtest on real prices. Regenerate them byte for byte with
   `mvn -pl qrp-data exec:java`.
+- **A real option chain.** `SYNOPT` is synthetic, priced from a known
+  volatility function and labelled as such; a vendor chain feed is an
+  `OptionChainProvider` implementation point, same pattern as market data.
+- **Stochastic volatility, exotics, a par-to-zero bootstrap.** See
+  `docs/spec-options.md`'s "Not here, deliberately" section for the full list.
 
 ## Engineering notes
 
@@ -159,7 +219,7 @@ ever becomes something the JIT handles badly, the seam is already in place.
 
 ## Testing
 
-`mvn verify` runs 202 tests. Three of them carry more weight than the rest:
+`mvn verify` runs 312 tests. Three of them carry more weight than the rest:
 
 - **`IndicatorContractTest`** reads `META-INF/services`, asserts the registry
   discovered exactly those providers, then holds every discovered indicator to

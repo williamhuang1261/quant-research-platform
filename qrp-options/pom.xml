@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.williamhuang1261.qrp</groupId>
+    <artifactId>qrp-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>qrp-options</artifactId>
+  <name>QRP :: Options</name>
+  <description>
+    Derivatives pricing: Black-Scholes-Merton with analytic Greeks, binomial
+    trees, Monte Carlo, an implied volatility solver and the volatility surface
+    built from them. Depends on qrp-stats for the normal distribution and the
+    specified RNG, so a price and a bootstrap draw come from the same arithmetic.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-stats</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+</project>

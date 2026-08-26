@@ -30,7 +30,7 @@ class PerformanceMetricsTest {
                 TestSeries.flatOpens(100.0, 100.0, 100.0, 100.0),
                 TestStrategies.alwaysFlat(),
                 io.github.williamhuang1261.qrp.core.Params.empty(),
-                CostModel.none(),
+                new MarketOpenExecutionModel(CostModel.none()),
                 10_000.0));
 
         assertTrue(Double.isNaN(result.metrics().sharpeRatio()));
@@ -49,7 +49,7 @@ class PerformanceMetricsTest {
                                 ? io.github.williamhuang1261.qrp.core.Signal.fullyLong()
                                 : io.github.williamhuang1261.qrp.core.Signal.flat()),
                 io.github.williamhuang1261.qrp.core.Params.empty(),
-                CostModel.none(),
+                new MarketOpenExecutionModel(CostModel.none()),
                 10_000.0));
 
         assertEquals(3.0 / 5.0, result.metrics().timeInMarket(), 1e-12);

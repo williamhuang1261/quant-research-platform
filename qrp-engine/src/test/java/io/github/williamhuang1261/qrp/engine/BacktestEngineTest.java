@@ -15,7 +15,8 @@ class BacktestEngineTest {
 
     private static BacktestResult run(BarSeries series, io.github.williamhuang1261.qrp.core.spi.Strategy strategy,
             CostModel costs, double cash) {
-        return BacktestEngine.run(new BacktestRequest(series, strategy, Params.empty(), costs, cash));
+        return BacktestEngine.run(new BacktestRequest(
+                series, strategy, Params.empty(), new MarketOpenExecutionModel(costs), cash));
     }
 
     @Test
@@ -159,11 +160,12 @@ class BacktestEngineTest {
         BarSeries series = TestSeries.flatOpens(100.0, 100.0);
 
         assertThrows(IllegalArgumentException.class, () -> new BacktestRequest(
-                series, TestStrategies.alwaysFlat(), Params.empty(), CostModel.none(), 0.0));
+                series, TestStrategies.alwaysFlat(), Params.empty(),
+                new MarketOpenExecutionModel(CostModel.none()), 0.0));
         assertThrows(IllegalArgumentException.class, () -> new BacktestRequest(
                 TestSeries.flatOpens(100.0), TestStrategies.alwaysFlat(), Params.empty(),
-                CostModel.none(), 10_000.0));
+                new MarketOpenExecutionModel(CostModel.none()), 10_000.0));
         assertThrows(NullPointerException.class, () -> new BacktestRequest(
-                series, null, Params.empty(), CostModel.none(), 10_000.0));
+                series, null, Params.empty(), new MarketOpenExecutionModel(CostModel.none()), 10_000.0));
     }
 }

@@ -38,6 +38,7 @@ public record CliArguments(
                 usage: qrp run [options]
                        qrp workbench [options]
                        qrp list
+                       qrp options [options]
 
                 run options
                   --data <dir>          market data directory      (default: data/sample)
@@ -56,7 +57,10 @@ public record CliArguments(
                 window; --snapshot <file> renders it to a PNG instead.
 
                 list prints the indicators, strategies, compute engines and
-                instruments visible on the classpath and in the data directory.""";
+                instruments visible on the classpath and in the data directory.
+
+                options prices a chain, fits its volatility surface and runs the
+                no-arbitrage diagnostics.""";
     }
 
     /** @throws IllegalArgumentException with a usable message on any bad input */
