@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.williamhuang1261.qrp</groupId>
+    <artifactId>qrp-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>qrp-api</artifactId>
+  <name>QRP :: API</name>
+  <description>
+    A Spring Boot REST front end over a backtest run. A third caller of
+    BacktestRunner.run alongside the CLI and the JavaFX workbench: the
+    controller only translates a JSON request into the CLI's own flag
+    grammar, so CliArguments keeps doing the parsing, defaulting and
+    validation it already does for the other two front ends.
+  </description>
+
+  <dependencies>
+    <!-- Reuses BacktestRunner and CliArguments directly rather than reaching
+         around them to qrp-engine, so the REST layer inherits the CLI's own
+         defaults and validation instead of a second copy of them. The cost is
+         qrp-app's JavaFX dependency graph riding along into a module that
+         never opens a window: a documented trade-off, not an oversight; see
+         docs/spec-api.md. -->
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-app</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- ServiceLoader-discovered at runtime by the strategy/indicator lookups
+         inside BacktestRunner; declared explicitly rather than relying on a
+         transitive runtime-scope dependency to survive the module boundary. -->
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-indicators</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <properties>
+    <exec.mainClass>io.github.williamhuang1261.qrp.api.QrpApiApplication</exec.mainClass>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- The controller's default data directory ("data/sample") is
+               relative, matching CliArguments' own default; running tests
+               from the repo root (not this module's dir) is what makes that
+               default resolve without every test naming a data override,
+               same reasoning as exec-maven-plugin's workingDirectory above. -->
+          <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <version>${spring-boot.version}</version>
+        <configuration>
+          <mainClass>io.github.williamhuang1261.qrp.api.QrpApiApplication</mainClass>
+          <!-- Matches the exec-maven-plugin convention already used by
+               qrp-app: the default data directory ("data/sample") is
+               resolved relative to the repo root, not this module's dir. -->
+          <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

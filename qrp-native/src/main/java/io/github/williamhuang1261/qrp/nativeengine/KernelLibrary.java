@@ -35,14 +35,17 @@ final class KernelLibrary {
 
     private final MethodHandle rollingMean;
     private final MethodHandle bootstrapMeans;
+    private final MethodHandle bootstrapMedians;
     private final MethodHandle openmpThreads;
     private final Path path;
     private final String unavailableReason;
 
     private KernelLibrary(MethodHandle rollingMean, MethodHandle bootstrapMeans,
-            MethodHandle openmpThreads, Path path, String unavailableReason) {
+            MethodHandle bootstrapMedians, MethodHandle openmpThreads, Path path,
+            String unavailableReason) {
         this.rollingMean = rollingMean;
         this.bootstrapMeans = bootstrapMeans;
+        this.bootstrapMedians = bootstrapMedians;
         this.openmpThreads = openmpThreads;
         this.path = path;
         this.unavailableReason = unavailableReason;
@@ -98,6 +101,27 @@ final class KernelLibrary {
         }
     }
 
+    /**
+     * Medians of {@code draws} block-bootstrap resamples. {@code useArena}
+     * selects the native scratch-buffer strategy for each draw's materialized
+     * resample: the mmap-backed arena allocator when true, a malloc-backed
+     * fallback when false. Both are asserted to agree bit-identically in
+     * {@code BootstrapMedianTest} — the flag changes only how the memory for
+     * one draw is obtained, never the numbers it produces.
+     */
+    double[] bootstrapMedians(double[] sample, int draws, int blockSize, long seed, boolean useArena) {
+        requireAvailable();
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment in = arena.allocateFrom(ValueLayout.JAVA_DOUBLE, sample);
+            MemorySegment out = arena.allocate(ValueLayout.JAVA_DOUBLE, draws);
+            bootstrapMedians.invokeExact(in, sample.length, draws, blockSize, seed,
+                    useArena ? 1 : 0, out);
+            return out.toArray(ValueLayout.JAVA_DOUBLE);
+        } catch (Throwable e) {
+            throw new IllegalStateException("qrp_bootstrap_medians failed", e);
+        }
+    }
+
     private void requireAvailable() {
         if (!isAvailable()) {
             throw new IllegalStateException("native kernel is unavailable: " + unavailableReason);
@@ -147,14 +171,21 @@ final class KernelLibrary {
                             ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_LONG,
                             ValueLayout.ADDRESS));
 
-            return new KernelLibrary(rolling, bootstrap, threads, library, null);
+            MethodHandle median = linker.downcallHandle(
+                    lookup.find("qrp_bootstrap_medians").orElseThrow(
+                            () -> new IllegalStateException("qrp_bootstrap_medians is missing")),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_INT,
+                            ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_LONG,
+                            ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
+
+            return new KernelLibrary(rolling, bootstrap, median, threads, library, null);
         } catch (Throwable e) {
             return unavailable("could not bind " + library + ": " + e);
         }
     }
 
     private static KernelLibrary unavailable(String reason) {
-        return new KernelLibrary(null, null, null, null, reason);
+        return new KernelLibrary(null, null, null, null, null, reason);
     }
 
     private static Optional<Path> locate() {

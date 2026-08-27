@@ -10,6 +10,8 @@ import io.github.williamhuang1261.qrp.data.CsvMarketDataProvider;
 import io.github.williamhuang1261.qrp.engine.BacktestEngine;
 import io.github.williamhuang1261.qrp.engine.BacktestRequest;
 import io.github.williamhuang1261.qrp.engine.BacktestResult;
+import io.github.williamhuang1261.qrp.engine.ExecutionModel;
+import io.github.williamhuang1261.qrp.engine.LimitOrderBookExecutionModel;
 import io.github.williamhuang1261.qrp.engine.MarketOpenExecutionModel;
 import io.github.williamhuang1261.qrp.stats.ComputeEngines;
 import io.github.williamhuang1261.qrp.stats.EquityCurve;
@@ -31,6 +33,7 @@ public final class BacktestRunner {
             BacktestResult result,
             String strategyId,
             String engineId,
+            String executionId,
             Optional<MonteCarloSimulation.Report> monteCarlo) {
     }
 
@@ -52,16 +55,33 @@ public final class BacktestRunner {
         Strategy strategy = PluginRegistry.load(Strategy.class, Strategy::id)
                 .require(arguments.strategyId());
 
+        ExecutionModel execution = executionModel(arguments);
         BacktestResult result = BacktestEngine.run(new BacktestRequest(
-                series, strategy, arguments.params(),
-                new MarketOpenExecutionModel(arguments.costs()), arguments.initialCash()));
+                series, strategy, arguments.params(), execution, arguments.initialCash()));
 
         ComputeEngine engine = ComputeEngines.best();
         Optional<MonteCarloSimulation.Report> monteCarlo = arguments.monteCarloPaths() > 0
                 ? Optional.of(simulate(result, arguments))
                 : Optional.empty();
 
-        return new Outcome(result, strategy.id(), engine.id(), monteCarlo);
+        return new Outcome(result, strategy.id(), engine.id(), arguments.execution().id(), monteCarlo);
+    }
+
+    /**
+     * Builds the requested {@link ExecutionModel}. Kept as a switch rather than
+     * a lookup table: two implementations exist, and a table would be more
+     * ceremony than the thing it replaces.
+     */
+    private static ExecutionModel executionModel(CliArguments arguments) {
+        return switch (arguments.execution()) {
+            case MARKET_OPEN -> new MarketOpenExecutionModel(arguments.costs());
+            case LOB -> new LimitOrderBookExecutionModel(
+                    arguments.costs(),
+                    arguments.lobSpreadFraction(),
+                    arguments.lobOffsetLevels(),
+                    arguments.lobLevels(),
+                    arguments.lobDepthFraction());
+        };
     }
 
     private static MonteCarloSimulation.Report simulate(BacktestResult result, CliArguments arguments) {

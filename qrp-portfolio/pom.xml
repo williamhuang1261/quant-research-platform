@@ -29,5 +29,16 @@
       <artifactId>qrp-stats</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-engine</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-data</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>

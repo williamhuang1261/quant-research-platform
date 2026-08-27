@@ -1,13 +1,16 @@
 package io.github.williamhuang1261.qrp.app;
 
 import io.github.williamhuang1261.qrp.core.BarSeries;
+import io.github.williamhuang1261.qrp.core.DoubleSeries;
 import io.github.williamhuang1261.qrp.engine.BacktestResult;
 import io.github.williamhuang1261.qrp.engine.PerformanceMetrics;
+import io.github.williamhuang1261.qrp.engine.Trade;
 import io.github.williamhuang1261.qrp.stats.ConfidenceInterval;
 import io.github.williamhuang1261.qrp.stats.MonteCarloSimulation;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -32,6 +35,7 @@ public final class ReportFormatter {
             BacktestResult result,
             String strategyId,
             String engineId,
+            String executionId,
             Optional<MonteCarloSimulation.Report> monteCarlo) {
 
         BarSeries series = result.series();
@@ -52,7 +56,8 @@ public final class ReportFormatter {
                 .append(row("Sharpe ratio", ratio(metrics.sharpeRatio())))
                 .append(row("max drawdown", unsignedPercent(metrics.maxDrawdown())))
                 .append(row("trades", String.valueOf(metrics.tradeCount())))
-                .append(row("time in market", unsignedPercent(metrics.timeInMarket())));
+                .append(row("time in market", unsignedPercent(metrics.timeInMarket())))
+                .append(executionSection(result, executionId));
 
         monteCarlo.ifPresent(report -> out.append(rule())
                 .append(String.format(Locale.ROOT, "  Monte Carlo: %d resampled paths%n", report.paths()))
@@ -69,6 +74,55 @@ public final class ReportFormatter {
                 .append("  strategy on this history, not its behaviour on unseen data.\n")
                 .append(rule())
                 .toString();
+    }
+
+    /**
+     * Fill rate and realized slippage vs. the reference price, computed the
+     * same way regardless of which {@link io.github.williamhuang1261.qrp.engine.ExecutionModel}
+     * produced the trades, so a {@code market-open} run and a {@code lob} run
+     * on the same strategy and data are honestly comparable.
+     *
+     * <p>"Attempted" fills are counted from the exposure series rather than a
+     * separate counter: {@code BacktestEngine} advances the held target every
+     * time it hands a pending target to the execution model, whether or not
+     * that model actually filled it, so a change in {@code exposure} between
+     * consecutive bars is exactly one fill attempt.
+     */
+    private static String executionSection(BacktestResult result, String executionId) {
+        DoubleSeries exposure = result.exposure();
+        int attempts = 0;
+        for (int i = 1; i < exposure.size(); i++) {
+            if (exposure.get(i) != exposure.get(i - 1)) {
+                attempts++;
+            }
+        }
+
+        List<Trade> trades = result.trades();
+        int filled = trades.size();
+        double fillRate = attempts == 0 ? Double.NaN : (double) filled / attempts;
+
+        double totalSlippage = 0.0;
+        double referenceNotional = 0.0;
+        for (Trade trade : trades) {
+            totalSlippage += trade.slippageCost();
+            referenceNotional += Math.abs(trade.shares()) * trade.referencePrice();
+        }
+        double averageSlippageBps = referenceNotional > 0.0
+                ? totalSlippage / referenceNotional * 10_000.0
+                : Double.NaN;
+
+        return rule()
+                .concat(String.format(Locale.ROOT, "  execution: %s%n", executionId))
+                .concat(rule())
+                .concat(row("fill attempts", String.valueOf(attempts)))
+                .concat(row("fills completed", String.valueOf(filled)))
+                .concat(row("fill rate", unsignedPercent(fillRate)))
+                .concat(row("total slippage vs. reference", money(totalSlippage)))
+                .concat(row("avg. slippage vs. reference", bps(averageSlippageBps)));
+    }
+
+    private static String bps(double value) {
+        return Double.isNaN(value) ? "n/a" : String.format(Locale.ROOT, "%.2f bps", value);
     }
 
     private static String date(Instant instant) {

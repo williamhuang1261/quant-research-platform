@@ -65,6 +65,51 @@ class CliArgumentsTest {
     }
 
     @Test
+    @DisplayName("--execution defaults to market-open, with no invented LOB flags needed")
+    void executionDefaultsToMarketOpen() {
+        CliArguments arguments = CliArguments.parse(List.of());
+
+        assertEquals(CliArguments.ExecutionKind.MARKET_OPEN, arguments.execution());
+        assertEquals(0.5, arguments.lobSpreadFraction(), 1e-12);
+        assertEquals(1.0, arguments.lobOffsetLevels(), 1e-12);
+        assertEquals(5, arguments.lobLevels());
+        assertEquals(0.1, arguments.lobDepthFraction(), 1e-12);
+    }
+
+    @Test
+    @DisplayName("--execution selects lob, space-separated or with an inline =")
+    void executionSelectsLob() {
+        assertEquals(CliArguments.ExecutionKind.LOB,
+                CliArguments.parse(List.of("--execution", "lob")).execution());
+        assertEquals(CliArguments.ExecutionKind.LOB,
+                CliArguments.parse(List.of("--execution=lob")).execution());
+        assertEquals(CliArguments.ExecutionKind.MARKET_OPEN,
+                CliArguments.parse(List.of("--execution=market-open")).execution());
+    }
+
+    @Test
+    @DisplayName("the lob-* flags override the LimitOrderBookExecutionModel defaults")
+    void lobFlagsOverrideDefaults() {
+        CliArguments arguments = CliArguments.parse(List.of(
+                "--execution", "lob", "--lob-spread", "0.2", "--lob-offset", "0.5",
+                "--lob-levels", "3", "--lob-depth", "0.01"));
+
+        assertEquals(CliArguments.ExecutionKind.LOB, arguments.execution());
+        assertEquals(0.2, arguments.lobSpreadFraction(), 1e-12);
+        assertEquals(0.5, arguments.lobOffsetLevels(), 1e-12);
+        assertEquals(3, arguments.lobLevels());
+        assertEquals(0.01, arguments.lobDepthFraction(), 1e-12);
+    }
+
+    @Test
+    @DisplayName("--execution rejects anything but market-open or lob")
+    void executionRejectsUnknownValues() {
+        assertTrue(assertThrows(IllegalArgumentException.class,
+                        () -> CliArguments.parse(List.of("--execution", "vwap")))
+                .getMessage().contains("--execution"));
+    }
+
+    @Test
     @DisplayName("rejects bad input with a message naming the flag")
     void rejectsBadInput() {
         assertTrue(assertThrows(IllegalArgumentException.class,

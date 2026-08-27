@@ -25,7 +25,12 @@ public record CliArguments(
         int monteCarloPaths,
         int blockSize,
         double confidenceLevel,
-        long seed) {
+        long seed,
+        ExecutionKind execution,
+        double lobSpreadFraction,
+        double lobOffsetLevels,
+        int lobLevels,
+        double lobDepthFraction) {
 
     private static final String DEFAULT_DATA = "data/sample";
     private static final int DEFAULT_PATHS = 2_000;
@@ -33,12 +38,50 @@ public record CliArguments(
     private static final double DEFAULT_LEVEL = 0.95;
     private static final long DEFAULT_SEED = 20260825L;
 
+    /**
+     * Defaults for {@link io.github.williamhuang1261.qrp.engine.LimitOrderBookExecutionModel},
+     * mirrored here rather than referenced across the module boundary so the
+     * CLI's usage text and the record's fields stay one obvious source of truth
+     * for what {@code --execution=lob} does with no other flags.
+     */
+    private static final double DEFAULT_LOB_SPREAD = 0.5;
+    private static final double DEFAULT_LOB_OFFSET = 1.0;
+    private static final int DEFAULT_LOB_LEVELS = 5;
+    private static final double DEFAULT_LOB_DEPTH = 0.1;
+
+    /** Which {@code ExecutionModel} a run fills against. */
+    public enum ExecutionKind {
+        MARKET_OPEN("market-open"),
+        LOB("lob");
+
+        private final String id;
+
+        ExecutionKind(String id) {
+            this.id = id;
+        }
+
+        public String id() {
+            return id;
+        }
+
+        static ExecutionKind fromId(String raw) {
+            return switch (raw) {
+                case "market-open" -> MARKET_OPEN;
+                case "lob" -> LOB;
+                default -> throw new IllegalArgumentException(
+                        "--execution expects market-open or lob, got: " + raw);
+            };
+        }
+    }
+
     public static String usage() {
         return """
                 usage: qrp run [options]
                        qrp workbench [options]
                        qrp list
                        qrp options [options]
+                       qrp compare [options]
+                       qrp portfolio [options]
 
                 run options
                   --data <dir>          market data directory      (default: data/sample)
@@ -52,6 +95,11 @@ public record CliArguments(
                   --block <n>           bootstrap block size        (default: 20)
                   --level <0..1>        confidence level            (default: 0.95)
                   --seed <n>            resampling seed             (default: 20260825)
+                  --execution <id>      market-open|lob             (default: market-open)
+                  --lob-spread <frac>   lob book spread as a fraction of bar range (default: 0.5)
+                  --lob-offset <levels> lob limit offset, in half-spreads     (default: 1.0)
+                  --lob-levels <n>      lob synthetic price levels per side   (default: 5)
+                  --lob-depth <frac>    lob visible depth as a fraction of bar volume (default: 0.1)
 
                 workbench takes the same options as run and opens the JavaFX
                 window; --snapshot <file> renders it to a PNG instead.
@@ -60,7 +108,15 @@ public record CliArguments(
                 instruments visible on the classpath and in the data directory.
 
                 options prices a chain, fits its volatility surface and runs the
-                no-arbitrage diagnostics.""";
+                no-arbitrage diagnostics.
+
+                compare runs the same strategy over several funds and a passive
+                benchmark and prints a one-page, fee-adjusted comparison table.
+
+                portfolio rebalances several instruments through a
+                PortfolioOptimizer (--optimizer=mean-variance|risk-parity) on a
+                schedule (--rebalance=monthly|weekly) and prints target weights,
+                realized risk contribution and turnover.""";
     }
 
     /** @throws IllegalArgumentException with a usable message on any bad input */
@@ -76,6 +132,11 @@ public record CliArguments(
         int block = DEFAULT_BLOCK;
         double level = DEFAULT_LEVEL;
         long seed = DEFAULT_SEED;
+        ExecutionKind execution = ExecutionKind.MARKET_OPEN;
+        double lobSpread = DEFAULT_LOB_SPREAD;
+        double lobOffset = DEFAULT_LOB_OFFSET;
+        int lobLevels = DEFAULT_LOB_LEVELS;
+        double lobDepth = DEFAULT_LOB_DEPTH;
 
         for (int i = 0; i < arguments.size(); i++) {
             String flag = arguments.get(i);
@@ -91,7 +152,22 @@ public record CliArguments(
                 case "--block" -> block = (int) number(value(arguments, ++i, flag), flag);
                 case "--level" -> level = number(value(arguments, ++i, flag), flag);
                 case "--seed" -> seed = (long) number(value(arguments, ++i, flag), flag);
-                default -> throw new IllegalArgumentException("unknown option: " + flag);
+                case "--execution" -> execution = ExecutionKind.fromId(value(arguments, ++i, flag));
+                case "--lob-spread" -> lobSpread = number(value(arguments, ++i, flag), flag);
+                case "--lob-offset" -> lobOffset = number(value(arguments, ++i, flag), flag);
+                case "--lob-levels" -> lobLevels = (int) number(value(arguments, ++i, flag), flag);
+                case "--lob-depth" -> lobDepth = number(value(arguments, ++i, flag), flag);
+                default -> {
+                    // "--execution=lob" is accepted alongside the space-separated
+                    // "--execution lob" that every other flag uses: it is the form
+                    // most CLI docs (and this project's own plan) write inline, and
+                    // rejecting it here would be a needless surprise for that one flag.
+                    if (flag.startsWith("--execution=")) {
+                        execution = ExecutionKind.fromId(flag.substring("--execution=".length()));
+                    } else {
+                        throw new IllegalArgumentException("unknown option: " + flag);
+                    }
+                }
             }
         }
 
@@ -109,7 +185,7 @@ public record CliArguments(
             throw new IllegalArgumentException("--paths must not be negative, got: " + paths);
         }
         return new CliArguments(data, symbol, timeframe, strategy, params, costs, cash,
-                paths, block, level, seed);
+                paths, block, level, seed, execution, lobSpread, lobOffset, lobLevels, lobDepth);
     }
 
     /**

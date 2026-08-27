@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.williamhuang1261.qrp</groupId>
+    <artifactId>qrp-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>qrp-signals</artifactId>
+  <name>QRP :: Signals</name>
+  <description>
+    Cross-sectional signal generation: turns an indicator's output into an
+    expected-return forecast, and tests that forecast's Spearman information
+    coefficient for statistical significance rather than trusting backtest
+    P&amp;L alone.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-stats</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-indicators</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-data</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

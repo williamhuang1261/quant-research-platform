@@ -26,7 +26,9 @@
     <module>qrp-native</module>
     <module>qrp-portfolio</module>
     <module>qrp-report</module>
+    <module>qrp-signals</module>
     <module>qrp-app</module>
+    <module>qrp-api</module>
   </modules>
 
   <properties>
@@ -34,6 +36,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.11.4</junit.version>
     <javafx.version>25</javafx.version>
+    <spring-boot.version>3.5.16</spring-boot.version>
   </properties>
 
   <dependencyManagement>
@@ -42,6 +45,16 @@
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
         <version>${junit.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <!-- Imported rather than inherited from spring-boot-starter-parent: this
+           root pom is already the platform's parent, so only qrp-api opts into
+           the BOM's managed versions. -->
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-dependencies</artifactId>
+        <version>${spring-boot.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

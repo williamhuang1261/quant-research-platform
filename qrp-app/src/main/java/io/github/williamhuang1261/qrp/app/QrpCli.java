@@ -45,6 +45,8 @@ public final class QrpCli {
                 case "list" -> listInstalled(rest, out);
                 case "workbench" -> openWorkbench(rest);
                 case "options" -> runOptions(rest, out);
+                case "compare" -> runCompare(rest, out);
+                case "portfolio" -> runPortfolio(rest, out);
                 default -> {
                     err.println("unknown command: " + command);
                     err.println(CliArguments.usage());
@@ -86,10 +88,23 @@ public final class QrpCli {
         return 0;
     }
 
+    private static int runCompare(List<String> args, PrintStream out) {
+        CompareRunner.Outcome outcome = CompareRunner.run(CompareArguments.parse(args));
+        out.print(FundComparisonReportFormatter.format(outcome));
+        return 0;
+    }
+
+    private static int runPortfolio(List<String> args, PrintStream out) {
+        PortfolioRunner.Outcome outcome = PortfolioRunner.run(PortfolioArguments.parse(args));
+        out.print(PortfolioReportFormatter.format(outcome));
+        return 0;
+    }
+
     private static int runBacktest(List<String> args, PrintStream out) {
         BacktestRunner.Outcome outcome = BacktestRunner.run(CliArguments.parse(args));
         out.print(ReportFormatter.format(
-                outcome.result(), outcome.strategyId(), outcome.engineId(), outcome.monteCarlo()));
+                outcome.result(), outcome.strategyId(), outcome.engineId(),
+                outcome.executionId(), outcome.monteCarlo()));
         return 0;
     }
 

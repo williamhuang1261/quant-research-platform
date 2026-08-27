@@ -74,6 +74,21 @@
       <artifactId>qrp-options</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-report</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-portfolio</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-signals</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <!-- Implementations the app never names in code: both arrive through
          ServiceLoader. Runtime scope is deliberate — nothing here imports them,

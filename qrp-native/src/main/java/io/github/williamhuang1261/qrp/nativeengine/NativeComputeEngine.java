@@ -75,4 +75,31 @@ public final class NativeComputeEngine implements ComputeEngine {
         }
         return library.bootstrapMeans(sample, draws, blockSize, seed);
     }
+
+    /**
+     * Medians of {@code draws} block-bootstrap resamples of {@code sample}.
+     * Not part of {@link ComputeEngine}: unlike the mean, this has no portable
+     * Java counterpart in this platform yet, so it is exposed here only, the
+     * same way {@link #openmpThreads()} is native-only.
+     *
+     * @param useArena selects the native scratch-buffer strategy per draw: the
+     *                 mmap-backed arena allocator when true, a malloc-backed
+     *                 fallback when false. Both produce identical output.
+     */
+    public double[] bootstrapMedians(double[] sample, int draws, int blockSize, long seed, boolean useArena) {
+        if (sample.length == 0) {
+            throw new IllegalArgumentException("sample must not be empty");
+        }
+        if (draws < 1) {
+            throw new IllegalArgumentException("draws must be at least 1, got: " + draws);
+        }
+        if (blockSize < 1) {
+            throw new IllegalArgumentException("blockSize must be at least 1, got: " + blockSize);
+        }
+        if (blockSize > sample.length) {
+            throw new IllegalArgumentException(
+                    "blockSize (" + blockSize + ") exceeds the sample length (" + sample.length + ")");
+        }
+        return library.bootstrapMedians(sample, draws, blockSize, seed, useArena);
+    }
 }

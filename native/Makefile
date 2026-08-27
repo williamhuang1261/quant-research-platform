@@ -6,6 +6,8 @@
 #
 #   make          build the shared library into build/
 #   make info     print what was detected, without building
+#   make test     build and run the arena/malloc allocator correctness test
+#   make bench    build and run the arena vs. malloc allocation benchmark
 #   make clean    remove build/ (the platform falls back to Java)
 
 UNAME_S := $(shell uname -s)
@@ -37,14 +39,32 @@ else
 endif
 
 LIB := $(BUILD_DIR)/$(LIB_STEM).$(LIB_EXT)
+TEST_BIN := $(BUILD_DIR)/arena_allocator_test
+BENCH_BIN := $(BUILD_DIR)/allocator_benchmark
 
-.PHONY: all info clean
+.PHONY: all info clean test bench
 
 all: $(LIB)
 
-$(LIB): src/kernel.cpp | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $(OMP_CXXFLAGS) $(SHARED_FLAG) -o $@ $< $(OMP_LDFLAGS)
+$(LIB): src/kernel.cpp src/arena_allocator.cpp src/arena_allocator.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(OMP_CXXFLAGS) $(SHARED_FLAG) -o $@ src/kernel.cpp src/arena_allocator.cpp $(OMP_LDFLAGS)
 	@echo "built $@  (OpenMP: $(OMP_STATUS))"
+
+# Standalone correctness test for the arena/malloc allocators (Extension 8).
+# No OpenMP needed: this binary only exercises single-threaded allocation.
+test: $(TEST_BIN)
+	./$(TEST_BIN)
+
+$(TEST_BIN): src/arena_allocator.cpp src/arena_allocator_test.cpp src/arena_allocator.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ src/arena_allocator.cpp src/arena_allocator_test.cpp
+
+# Arena vs. malloc allocation benchmark (Extension 8). Also no OpenMP: it
+# measures single-threaded allocation cost, not the kernel's parallel loop.
+bench: $(BENCH_BIN)
+	./$(BENCH_BIN)
+
+$(BENCH_BIN): src/arena_allocator.cpp src/allocator_benchmark.cpp src/arena_allocator.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ src/arena_allocator.cpp src/allocator_benchmark.cpp
 
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
