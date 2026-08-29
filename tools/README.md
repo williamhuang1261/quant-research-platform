@@ -7,9 +7,23 @@ fetch, so the build stays reproducible with no network and no account.
 
 - `fetch_ust_curve.py` -- refreshes `data/rates/ust_cmt_<date>.csv` from
   Treasury.gov's public par yield curve. See `data/rates/README.md`.
+- `fetch_energy_prices.py` -- refreshes `data/energy/henry_hub_<date>.csv`
+  from the EIA's public Henry Hub natural gas spot price history. Needs
+  `xlrd` (`pip install xlrd`) to read the legacy `.xls` EIA still serves for
+  this series. See `data/energy/README.md`.
 - `plot_surface.py` -- renders the CSV grid `qrp options --export` writes into
   a smile, a term structure and a 3D surface plot. Needs `matplotlib` and
   `numpy` (`pip install matplotlib numpy`), unlike the rest of this
   repository, which needs nothing beyond a JDK and Maven. That is why plotting
   lives here rather than in the Java side: an optional reporting step, kept
   out of the dependency graph everything else builds against.
+- `energy_db.py` -- loads a Henry Hub CSV into SQLite and exposes a small
+  query layer (date-range slice, rolling average via a SQL window function).
+  Run as a script (`python3 tools/energy_db.py <csv> <db>`) or imported by
+  `forecast_energy.py`; tested by `test_energy_db.py`. See
+  `docs/spec-commodities.md`.
+- `forecast_energy.py` -- backtests a seasonal-naive and an exponential-
+  smoothing forecast against a real holdout, runs a block-bootstrap Monte
+  Carlo price-path simulation, and renders both to a PNG. Needs
+  `matplotlib` and `numpy`, same as `plot_surface.py`. See
+  `docs/spec-commodities.md`.

@@ -357,6 +357,41 @@ limitations: single indicator per signal, no multi-factor combination, no
 transaction-cost-aware signal decay, and the z-approximation's small-sample
 caveat.
 
+## Commodities: real Henry Hub natural gas data, SQL, forecasting and Monte Carlo
+
+```
+$ python3 tools/energy_db.py data/energy/henry_hub_2026-08-29.csv /tmp/energy.db
+skipped 1 row(s) with no reported price
+loaded /tmp/energy.db: 7441 rows in prices
+$ python3 tools/forecast_energy.py /tmp/energy.db docs/energy-forecast.png
+seasonal-naive:        MAE=0.1910  RMSE=0.2564
+exp. smoothing (a=0.90): MAE=0.0684  RMSE=0.0925
+winner on this holdout: exponential smoothing
+Monte Carlo 30-day-ahead median final price: 2.72 (5-95%: 1.73..4.28)
+wrote docs/energy-forecast.png
+```
+
+Every other series in this repository is synthetic (`SYNA`/`SYNB`/`SYNETF`,
+`SYNOPT`) and no module has ever used a database. `tools/energy_db.py` loads
+a real, public commodity price series -- the EIA's daily Henry Hub natural
+gas spot price, fetched with no API key by `tools/fetch_energy_prices.py` --
+into SQLite, with a tested load/query layer (`tools/test_energy_db.py`).
+`tools/forecast_energy.py` backtests two one-step-ahead forecasting
+baselines (seasonal-naive, simple exponential smoothing) against a real
+30-day holdout and reports whichever wins, then runs a block-bootstrap
+Monte Carlo simulation of future price paths over the real historical
+log-returns -- the same moving-block resampling idea `qrp-stats`'s Java
+Monte Carlo already uses, applied here to a commodity instead of a
+synthetic equity series.
+
+![Henry Hub history, holdout backtest, and Monte Carlo fan chart](docs/energy-forecast.png)
+
+*Rendered by `tools/forecast_energy.py` -- see the two commands above.*
+
+See [`docs/spec-commodities.md`](docs/spec-commodities.md) for the schema,
+the backtest methodology, and what is deliberately not here (no futures
+curve, no weather data, no real-time feed).
+
 ## REST API: a third front end over the same backtest, and the fund comparison report
 
 ```
