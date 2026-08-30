@@ -1,0 +1,31 @@
+name: merge-gate
+
+on:
+  pull_request:
+
+jobs:
+  golden-run-check:
+    name: golden-run merge gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Non-zero only when a pinned golden-run literal changed with no
+      # matching docs/ update in the same diff -- see tools/merge_gate.py's
+      # own docstring for what this checks and its stated limitations.
+      # Relies on GitHub Actions' default bash -eo pipefail so the pipe
+      # into GITHUB_STEP_SUMMARY doesn't swallow merge_gate.py's exit code.
+      - name: Check pinned golden-run numbers
+        run: |
+          python3 tools/merge_gate.py \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.sha }}" \
+            | tee -a "$GITHUB_STEP_SUMMARY"

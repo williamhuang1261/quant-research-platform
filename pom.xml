@@ -29,6 +29,7 @@
     <module>qrp-signals</module>
     <module>qrp-app</module>
     <module>qrp-api</module>
+    <module>qrp-realassets</module>
   </modules>
 
   <properties>

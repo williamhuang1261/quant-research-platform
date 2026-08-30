@@ -392,6 +392,42 @@ See [`docs/spec-commodities.md`](docs/spec-commodities.md) for the schema,
 the backtest methodology, and what is deliberately not here (no futures
 curve, no weather data, no real-time feed).
 
+## Real assets: commercial property valuation via NOI, direct cap and DCF
+
+```java
+// rentRoll: the 20-unit SYNPROP rent roll (data/realassets/SYNPROP_rentroll.csv), as RentRollUnit records
+double gpr = NoiCalculator.grossPotentialRentAnnual(rentRoll);               // 264,000.00
+double noi = NoiCalculator.netOperatingIncome(gpr, 0.05, operatingExpenses); // 161,260.00
+
+double directCapValue = DirectCapValuation.value(noi, 0.065);                // 2,480,923.08
+
+var dcfInputs = new DcfValuation.Inputs(noi, /*growth*/ 0.02, /*years*/ 5, /*discount*/ 0.08, /*exitCap*/ 0.07);
+double dcfValue = DcfValuation.presentValue(dcfInputs);                      // 2,399,157.61
+```
+
+No module before this one has ever valued a physical, income-producing
+real asset -- `RatesCurve`/`BondAnalytics` discount a bond's cash flows off
+a real Treasury curve, and `qrp-portfolio` allocates across financial
+instruments, but neither values a property. `qrp-realassets` applies the
+same "discount a cash-flow stream off a rate" idea to a commercial real
+estate rent roll: `NoiCalculator` turns unit-level rents and an operating
+expense budget into net operating income, `DirectCapValuation` values a
+single year's NOI as a perpetuity, and `DcfValuation` discounts a multi-year,
+growing NOI stream plus a terminal (resale) value from an exit cap rate.
+`DiscountVacancySensitivityGrid` reports how the DCF value moves across a
+grid of discount rates and vacancy assumptions, the two a loan officer or
+asset manager typically stresses first.
+
+The sample property, `SYNPROP`, is clearly synthetic and documented as such
+in `data/realassets/README.md` -- unlike the Treasury curve and the Henry
+Hub series, no public, no-account source exists for real, unit-level rent-
+roll data.
+
+See [`docs/spec-realassets.md`](docs/spec-realassets.md) for the full
+methodology and what is deliberately not here (no market/demographic data
+feed, no debt-service or loan-sizing layer, no partnership/REIT-structure
+logic).
+
 ## REST API: a third front end over the same backtest, and the fund comparison report
 
 ```
@@ -645,6 +681,35 @@ in a specific real share class actually paid."
 
 CI runs on Ubuntu and macOS, builds the native kernel with `continue-on-error`,
 and therefore exercises both the fast path and the degraded one.
+
+## CI merge gate: catching undocumented drift in the golden-run numbers
+
+```
+$ python3 tools/merge_gate.py 220e179 debad21
+Golden-run merge gate: 220e179..debad21
+
+- qrp-api/.../ReportControllerTest.java: OK
+    before: []
+    after:  [3.0, -0.04115895776844469, ...]
+
+Accompanying docs/ changes: ['docs/spec-api.md']
+```
+
+A separate `merge-gate` GitHub Actions workflow runs `tools/merge_gate.py`
+on every pull request. It diffs the five golden-run test files above
+(`BacktestIntegrationTest`, `PortfolioBacktestEngineTest`,
+`RunControllerTest`, `ReportControllerTest`,
+`CrossSectionalSignalGeneratorGoldenRunTest`) between the PR's base and
+head, and fails the check if a pinned numeric literal changed with no
+matching `docs/` update in the same diff -- a small, honest analog of the
+merge-automation tooling a code-review/CI-productivity product builds,
+run against a real risk signal this platform already had rather than one
+invented for the occasion.
+
+See [`docs/spec-merge-gate.md`](docs/spec-merge-gate.md) for how the
+literal extraction works, its stated regex-vs-real-parser limitation, and
+what is deliberately not here (no PR-comment posting, no cross-language
+support).
 
 ## Limitations
 

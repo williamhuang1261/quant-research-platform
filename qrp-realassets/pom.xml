@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.williamhuang1261.qrp</groupId>
+    <artifactId>qrp-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>qrp-realassets</artifactId>
+  <name>QRP :: Real Assets</name>
+  <description>
+    Commercial real estate income-approach valuation: turns a rent roll into
+    net operating income, then values it two ways -- direct capitalization
+    and a multi-year discounted cash flow with a terminal value -- the same
+    "discount a cash flow off a rate" shape qrp-options already applies to
+    bonds, here applied to a physical income-producing asset instead.
+  </description>
+
+  <dependencies>
+    <!-- Standalone by design, matching qrp-signals'/qrp-portfolio's habit of
+         no cross-module coupling beyond what the calculation itself needs.
+         This module needs nothing from the rest of the platform: a rent
+         roll and a set of operating expenses are its own complete input. -->
+  </dependencies>
+</project>
