@@ -30,6 +30,8 @@
     <module>qrp-app</module>
     <module>qrp-api</module>
     <module>qrp-realassets</module>
+    <module>qrp-warehouse</module>
+    <module>qrp-feed</module>
   </modules>
 
   <properties>

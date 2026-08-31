@@ -21,4 +21,10 @@ class ApiExceptionHandler {
     ApiError handleBadRequest(RuntimeException exception) {
         return new ApiError(exception.getMessage());
     }
+
+    @ExceptionHandler(RunNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    ApiError handleRunNotFound(RunNotFoundException exception) {
+        return new ApiError(exception.getMessage());
+    }
 }

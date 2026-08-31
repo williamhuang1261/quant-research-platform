@@ -308,6 +308,45 @@ calling existing `qrp-report`/`qrp-app` code unmodified.
   back to the labelled template on any Ollama failure); this extension adds
   no new fallback logic of its own.
 
+## [Unreleased] — RDBMS/data-warehouse persistence layer
+
+Extended for a PIMCO Technology Analyst, Software Engineering (EMEA)
+posting (2026-08-31), flagged by a portfolio-fit check during CV tailoring:
+the platform's only prior database use (`tools/energy_db.py`, SQLite) was
+explicitly minimal, and this file's own "no-persistence" line, above, was
+literally true until now. Additive only; both existing `qrp-api` endpoints
+gain a read/write layer, nothing already shipped is removed.
+
+### Added
+- `qrp-warehouse` (14th module) — a real, embedded PostgreSQL server
+  (`io.zonky.test:embedded-postgres`, no Docker daemon or external account
+  needed), a Flyway-migrated star schema (`dim_instrument`, `dim_strategy`,
+  `fact_price_bar`, `fact_backtest_run`, `fact_report_run`), five plain-JDBC
+  repositories, and `WarehousePriceLoader`, a CSV-to-warehouse backfill
+  loader.
+- `qrp-api` — `RunController`/`ReportController` now read/write through the
+  warehouse: an identical repeat request is served from Postgres instead of
+  recomputed; a new `GET /api/runs/{id}` reads a prior run back with no
+  engine invocation, structurally (its signature carries no symbol,
+  strategy or params to recompute from); a new `PriceController`
+  (`GET /api/warehouse/prices`) answers an indexed date-range query over
+  the backfilled price fact table. `RunResponse`/`ReportResponse` gain
+  `id`/`cached` fields, additive to their existing shape.
+- `docs/spec-warehouse.md` — schema, cache-key design, why embedded
+  Postgres over Testcontainers or docker-compose, and two real design gaps
+  found and fixed before shipping (`fact_backtest_run` narrowing
+  `RunResponse`'s shape; `fact_report_run`'s key omitting fee rates).
+
+### Known limitations (in addition to the above)
+- No eviction or TTL on a cached run or report — a row, once written, is
+  served forever on a matching key.
+- No multi-tenant isolation; one schema, no per-caller scoping.
+- The report cache key is order-sensitive over candidate symbols:
+  requesting the same candidates in a different order is a cache miss, not
+  a hit, even though the computed result is identical.
+- No connection-pool tuning beyond Spring Boot's own `spring-boot-starter-web`
+  defaults.
+
 ## Release checklist
 
 1. `mvn verify` passes on Ubuntu and macOS, with and without the native kernel.

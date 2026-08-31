@@ -124,6 +124,20 @@ off an actual run against `data/sample` (SYNA/SYNB ranked against SYNETF,
 the default template narrative), and an unknown symbol returning `400` with
 the CLI's own message. `ApiError`/`ApiExceptionHandler` are unchanged (D6).
 
+## What Extension 12 added
+
+A real persistence layer, in a new module (`qrp-warehouse`), wired into
+both existing endpoints: every run/report now writes through to Postgres
+and an identical repeat request is served from it instead of recomputed;
+`GET /api/runs/{id}` reads a prior run back with no engine invocation; a
+new `PriceController` (`GET /api/warehouse/prices`) answers an indexed
+date-range query over a backfilled price fact table. `RunResponse`/
+`ReportResponse` gained `id`/`cached` fields. See
+[`docs/spec-warehouse.md`](docs/spec-warehouse.md) for the schema, the
+cache-key design, and why embedded Postgres over Testcontainers or a
+docker-compose service. This directly retires the "No persistence" line
+that used to be in this file's limitations section below.
+
 ## Running it
 
 ```
@@ -135,7 +149,7 @@ default backtest `qrp run` would:
 
 ```
 $ curl -s -X POST localhost:8080/api/runs -H 'Content-Type: application/json' -d '{}'
-{"strategyId":"sma-crossover","engineId":"openmp","executionId":"market-open",
+{"id":1,"cached":false,"strategyId":"sma-crossover","engineId":"openmp","executionId":"market-open",
  "initialEquity":100000.0,"finalEquity":92229.0094522352,
  "totalReturn":-0.077709905477648,"cagr":-0.04115895776844469,
  "annualisedVolatility":0.15940362521662213,"sharpeRatio":-0.174514427227237,
@@ -146,8 +160,10 @@ $ curl -s -X POST localhost:8080/api/runs -H 'Content-Type: application/json' -d
 
 `finalEquity`, `cagr`, `sharpeRatio`, `maxDrawdown` and `tradeCount` are
 exactly the numbers `BacktestIntegrationTest` and `QrpCliTest` already pin —
-one engine, three front ends, the same answer. A request naming an
-unavailable symbol returns the CLI's own error message as JSON, at `400`:
+one engine, three front ends, the same answer. `id`/`cached` are new as of
+Extension 12 — see [`docs/spec-warehouse.md`](docs/spec-warehouse.md) for a
+real cache-miss-then-hit transcript. A request naming an unavailable symbol
+returns the CLI's own error message as JSON, at `400`:
 
 ```
 $ curl -s -X POST localhost:8080/api/runs -H 'Content-Type: application/json' -d '{"symbol":"NOPE"}'
@@ -159,7 +175,7 @@ comparison `qrp compare` would, narrative included:
 
 ```
 $ curl -s localhost:8080/api/reports/compare
-{"strategyId":"sma-crossover","candidateSymbols":["SYNA","SYNB"],"benchmarkSymbol":"SYNETF",
+{"id":1,"cached":false,"strategyId":"sma-crossover","candidateSymbols":["SYNA","SYNB"],"benchmarkSymbol":"SYNETF",
  "rows":[
    {"displayName":"SYNA","isBenchmark":false,"grossCagr":-0.04115895776844469,
     "netCagr":-0.061038983750053344,"sharpeRatio":-0.174514427227237,
@@ -193,8 +209,10 @@ $ curl -s "localhost:8080/api/reports/compare?symbol=NOPE"
 - **No authentication or authorization.** Every request runs a backtest with
   no notion of a caller identity; not a concern this extension set out to
   demonstrate.
-- **No persistence.** Every run is stateless — nothing is stored, and there
-  is no way to list or re-fetch a past run by ID.
+- ~~No persistence.~~ **Retired by Extension 12** — every run/report now
+  writes through to a real Postgres warehouse; a past run is re-fetchable
+  by ID (`GET /api/runs/{id}`); see
+  [`docs/spec-warehouse.md`](docs/spec-warehouse.md).
 - **No pagination or streaming for the equity curve.** A long backtest
   returns its full curve in one JSON array; a data set large enough to make
   that impractical would need a different wire format, not addressed here.

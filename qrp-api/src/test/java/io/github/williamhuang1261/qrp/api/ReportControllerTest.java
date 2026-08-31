@@ -1,6 +1,8 @@
 package io.github.williamhuang1261.qrp.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -17,7 +19,9 @@ import org.springframework.test.web.servlet.MockMvc;
  * handling (MockMvc, no bound port). The no-params case is pinned to real
  * numbers read off an actual run against the bundled {@code data/sample}
  * series -- the same series and defaults {@code qrp compare} itself uses --
- * not assumed from the README's rounded transcript.
+ * not assumed from the README's rounded transcript. Now also exercises the
+ * real embedded Postgres warehouse: every request is a write-through, and a
+ * repeat request is a cache hit.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -33,18 +37,20 @@ class ReportControllerTest {
 
     @Test
     void noParamsReproducesTheCliDefaultComparison() throws Exception {
-        String json = mockMvc.perform(get("/api/reports/compare"))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        ReportResponse response = objectMapper.readValue(json, ReportResponse.class);
+        ReportResponse response = getCompare("/api/reports/compare");
 
         assertEquals("sma-crossover", response.strategyId());
         assertEquals(java.util.List.of("SYNA", "SYNB"), response.candidateSymbols());
         assertEquals("SYNETF", response.benchmarkSymbol());
         assertEquals(3, response.rows().size());
+        assertTrue(response.id() > 0);
+        // Not asserting cached() here: another test method sharing this
+        // class's embedded Postgres instance may have already persisted this
+        // exact no-params request, making this call a legitimate cache hit.
+        // Whether fresh or cached, the numbers below must be identical --
+        // that invariant is what this test actually checks. Cache-hit
+        // behavior itself is asserted independently, self-consistently,
+        // by anIdenticalRepeatRequestIsServedFromTheCacheRatherThanRecomputed.
 
         // Golden numbers read off a real `curl localhost:8080/api/reports/compare`
         // against the bundled data/sample series -- the same figures the
@@ -75,6 +81,36 @@ class ReportControllerTest {
                 response.narrative());
     }
 
+    /**
+     * A cache hit returns from {@code fact_report_run} before
+     * {@code CompareRunner.run} is ever called -- structurally, the same
+     * class of guarantee {@code RunController.getById} relies on, not an
+     * observed side effect. Provable without a network-based timing test:
+     * the response's numbers and narrative round-trip exactly through the
+     * persisted row.
+     */
+    @Test
+    void anIdenticalRepeatRequestIsServedFromTheCacheRatherThanRecomputed() throws Exception {
+        ReportResponse first = getCompare("/api/reports/compare");
+        ReportResponse second = getCompare("/api/reports/compare");
+
+        assertFalse(first.cached());
+        assertTrue(second.cached());
+        assertEquals(first.id(), second.id());
+        assertEquals(first.narrative(), second.narrative());
+        assertEquals(first.rows().size(), second.rows().size());
+        assertEquals(first.rows().get(0).netCagr(), second.rows().get(0).netCagr(), DELTA);
+    }
+
+    @Test
+    void aDifferentFeeIsANewRowNotACacheHit() throws Exception {
+        ReportResponse first = getCompare("/api/reports/compare?fee=0.02");
+        ReportResponse second = getCompare("/api/reports/compare?fee=0.05");
+
+        assertNotEquals(first.id(), second.id());
+        assertFalse(second.cached());
+    }
+
     @Test
     void unknownSymbolIsA400WithTheCliMessage() throws Exception {
         String json = mockMvc.perform(get("/api/reports/compare").param("symbol", "NOPE"))
@@ -85,5 +121,14 @@ class ReportControllerTest {
 
         ApiError error = objectMapper.readValue(json, ApiError.class);
         assertTrue(error.message().contains("unknown symbol"), error.message());
+    }
+
+    private ReportResponse getCompare(String pathWithQuery) throws Exception {
+        String json = mockMvc.perform(get(pathWithQuery))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readValue(json, ReportResponse.class);
     }
 }

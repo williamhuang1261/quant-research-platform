@@ -428,12 +428,44 @@ methodology and what is deliberately not here (no market/demographic data
 feed, no debt-service or loan-sizing layer, no partnership/REIT-structure
 logic).
 
+## Real-time feed: streaming bars to multiple subscribers over TCP
+
+```java
+FeedServer server = new FeedServer(0);                      // port 0 -> ephemeral, ask server.port()
+FeedClient subscriber = new FeedClient("127.0.0.1", server.port());
+
+server.publish("SYNA", bar);                                // fans out to every connected subscriber
+FeedProtocol.Frame frame = subscriber.readNext();            // frame.sequence(), frame.symbol(), frame.bar()
+
+subscriber.close();                                          // simulate a dropped connection
+// ...bars published while disconnected land in the server's backlog...
+subscriber.reconnectWithBackoff(5, Duration.ofMillis(100), Duration.ofSeconds(2));
+// subscriber.readNext() now resumes exactly where it left off, no gap, no duplicate
+```
+
+Every module above this one runs in-process; `qrp-feed` is the platform's
+first to move data over a network on its own initiative. `FeedServer`
+streams `qrp-core`'s existing `Bar` records to any number of subscribers
+over a length-prefixed TCP protocol, `FeedProtocol`. Each subscriber gets
+its own bounded outbound queue and writer thread, so one slow reader can
+only ever stall itself, not the publisher or any other subscriber; a
+subscriber whose queue overflows is disconnected rather than silently
+losing bars in the middle of its stream. `FeedServer` retains a bounded
+backlog of recently published bars, and `FeedClient` can reconnect with
+exponential backoff and resume from exactly the last sequence number it
+received, replaying anything it owes from that backlog.
+
+See [`docs/spec-feed.md`](docs/spec-feed.md) for the full wire format, the
+backpressure and resume design and why each was chosen, and what is
+deliberately not here (no authentication, no multi-topic routing, no
+durability beyond the in-memory backlog, no encryption).
+
 ## REST API: a third front end over the same backtest, and the fund comparison report
 
 ```
 $ mvn -q -pl qrp-api spring-boot:run &
 $ curl -s -X POST localhost:8080/api/runs -H 'Content-Type: application/json' -d '{}'
-{"strategyId":"sma-crossover","engineId":"openmp","executionId":"market-open",
+{"id":1,"cached":false,"strategyId":"sma-crossover","engineId":"openmp","executionId":"market-open",
  "initialEquity":100000.0,"finalEquity":92229.0094522352,
  "totalReturn":-0.077709905477648,"cagr":-0.04115895776844469,
  "annualisedVolatility":0.15940362521662213,"sharpeRatio":-0.174514427227237,
@@ -460,15 +492,17 @@ already pin: one engine, three front ends, the same answer. A bad request
 (an unavailable symbol, an invalid strategy parameter) returns `400` with
 the CLI's own error message as JSON rather than a stack trace. See
 [`docs/spec-api.md`](docs/spec-api.md) for the full design and stated
-limitations: no authentication, no persistence, no data-directory override
-from the request body.
+limitations: no authentication, no data-directory override from the
+request body. (Persistence — a real Postgres warehouse behind both
+endpoints — used to be on this list too; see
+[Warehouse](#warehouse-a-real-postgresql-persistence-layer-behind-the-rest-api) below.)
 
 A second endpoint puts the [fund comparison report](#fund-comparison-fees-risk-ranked-returns-a-plain-english-narrative)
 behind the same module, AI narrative included:
 
 ```
 $ curl -s localhost:8080/api/reports/compare
-{"strategyId":"sma-crossover","candidateSymbols":["SYNA","SYNB"],"benchmarkSymbol":"SYNETF",
+{"id":1,"cached":false,"strategyId":"sma-crossover","candidateSymbols":["SYNA","SYNB"],"benchmarkSymbol":"SYNETF",
  "rows":[
    {"displayName":"SYNA","netCagr":-0.061038983750053344,"sharpeRatio":-0.174514427227237,
     "maxDrawdown":0.24149473488945833,"benchmarkRelativeBps":-604.6589158938831, ...},
@@ -489,6 +523,50 @@ in the controller. `?narrative=ollama` behaves exactly as the CLI's own
 `--narrative=ollama` does, fail-closed included. See
 [`docs/spec-api.md`](docs/spec-api.md) (R6-R9, D6-D8) for the full design.
 
+## Warehouse: a real PostgreSQL persistence layer behind the REST API
+
+```
+$ curl -s -X POST localhost:8080/api/runs -H 'Content-Type: application/json' \
+    -d '{"symbol":"SYNB","params":{"fast":15,"slow":45}}'
+{"id":2,"cached":false,"strategyId":"sma-crossover","engineId":"openmp","executionId":"market-open",
+ "initialEquity":100000.0,"finalEquity":55916.195045654946,
+ "totalReturn":-0.4408380495434505,"cagr":-0.2606826716742455,
+ "annualisedVolatility":0.20824424138537823,"sharpeRatio":-1.2931842905614748,
+ "maxDrawdown":0.5204646670340692,"tradeCount":16,"timeInMarket":0.30952380952380953, ...}
+
+$ curl -s -X POST localhost:8080/api/runs -H 'Content-Type: application/json' \
+    -d '{"symbol":"SYNB","params":{"fast":15,"slow":45}}'
+{"id":2,"cached":true,"strategyId":"sma-crossover","engineId":"openmp","executionId":"market-open",
+ "initialEquity":100000.0,"finalEquity":55916.195045654946, ...}
+
+$ curl -s "localhost:8080/api/warehouse/prices?symbol=SYNA&timeframe=1d&from=2022-01-01T00:00:00Z&to=2022-01-08T00:00:00Z"
+[{"timestamp":"2022-01-03T21:00:00Z","open":100.27,"high":104.16,"low":96.64,"close":97.16,"volume":4112945},
+ {"timestamp":"2022-01-04T21:00:00Z","open":97.51,"high":103.02,"low":96.73,"close":98.61,"volume":5196928},
+ {"timestamp":"2022-01-05T21:00:00Z","open":98.93,"high":100.0,"low":98.71,"close":99.24,"volume":3135262},
+ {"timestamp":"2022-01-06T21:00:00Z","open":99.62,"high":100.98,"low":99.07,"close":100.73,"volume":3115944},
+ {"timestamp":"2022-01-07T21:00:00Z","open":101.06,"high":102.48,"low":99.14,"close":100.5,"volume":5038655}]
+```
+
+A new module, `qrp-warehouse`: a small star schema (instrument/strategy
+dimensions, price-bar and backtest/report-run facts) behind a real
+PostgreSQL server — run **embedded** (the actual server binary, managed as
+a subprocess) so a clean clone needs no Docker daemon and no external
+account, confirmed necessary rather than assumed: this development
+machine's own Docker CLI is installed but its daemon is not running.
+`RunController`/`ReportController` now read and write through it: the two
+identical `POST /api/runs` calls above return the **same `id`**, and the
+second reports `cached: true` — a repeat request is served from Postgres,
+not recomputed. `GET /api/runs/{id}` reads a prior run back the same way,
+structurally unable to recompute (its signature carries no symbol,
+strategy or params to recompute from). `GET /api/warehouse/prices` answers
+an indexed date-range query over the same warehouse, backfilled
+idempotently from `data/sample/*.csv` on every startup — the one endpoint
+here that reads the warehouse as a data source in its own right, not as a
+cache. See [`docs/spec-warehouse.md`](docs/spec-warehouse.md) for the
+schema, the cache-key design (including two real gaps found and fixed
+before shipping — see the "what is deliberately not here" and design-
+decisions sections there) and its own stated limitations.
+
 ## Architecture
 
 ```mermaid
@@ -504,6 +582,7 @@ graph TD
     signals["qrp-signals<br/>rank IC, significance, signal generator"]
     native["qrp-native<br/>OpenMP kernel + arena allocator via FFM"]
     app["qrp-app<br/>CLI + JavaFX workbench"]
+    warehouse["qrp-warehouse<br/>Postgres schema + JDBC repositories"]
     api["qrp-api<br/>Spring Boot REST endpoint"]
 
     data --> core
@@ -531,7 +610,10 @@ graph TD
     app --> signals
     app -. runtime only .-> ind
     app -. runtime only .-> native
+    warehouse --> core
+    warehouse --> data
     api --> app
+    api --> warehouse
 ```
 
 The dotted edges are the point: `qrp-app` never imports an indicator or a compute
@@ -553,7 +635,8 @@ boundary is enforced by the build rather than described in a document.
 | `qrp-signals` | `RankTransform`, `InformationCoefficient` (Spearman rank IC), `SignalSignificance` (z-test over an IC series), `CrossSectionalSignalGenerator` (one indicator's cross-sectional rank into an `expectedReturns` forecast) | [spec](docs/spec-signals.md) |
 | `qrp-native` | C++17 + OpenMP kernel bound through the foreign function API; `ArenaAllocator` (mmap-backed) and `MallocAllocator` behind the identical interface, backing the block-bootstrap median kernel's per-draw scratch buffer | [runbook](docs/runbook.md), [spec](docs/spec-memory.md) |
 | `qrp-app` | `run` / `list` / `workbench` / `options` / `compare` / `portfolio` | [spec](docs/spec-app.md) |
-| `qrp-api` | Spring Boot `POST /api/runs` and `GET /api/reports/compare` -- the CLI's own `CliArguments`/`BacktestRunner` and `CompareArguments`/`CompareRunner`, over HTTP | [spec](docs/spec-api.md) |
+| `qrp-warehouse` | Real, embedded PostgreSQL (Flyway-migrated star schema: instrument/strategy dimensions, price-bar and backtest/report-run facts), plain JDBC repositories, a CSV-to-warehouse backfill loader | [spec](docs/spec-warehouse.md) |
+| `qrp-api` | Spring Boot `POST /api/runs`, `GET /api/runs/{id}`, `GET /api/reports/compare` and `GET /api/warehouse/prices` -- the CLI's own `CliArguments`/`BacktestRunner` and `CompareArguments`/`CompareRunner`, over HTTP, reading/writing through `qrp-warehouse` | [spec](docs/spec-api.md) |
 
 ## What is deliberately not here
 
@@ -610,6 +693,11 @@ boundary is enforced by the build rather than described in a document.
   also not here — neither tool is available on Apple Silicon macOS, so
   `/usr/bin/time -l` resource-usage counters stand in instead. See
   `docs/spec-memory.md`.
+- **Authentication, multi-topic routing and durable replay in `qrp-feed`.**
+  Any TCP client that completes the resume handshake is admitted, every
+  subscriber receives every published bar with no topic filter, and the
+  resume backlog is in-memory only — no persistence survives a full
+  server-process restart. See `docs/spec-feed.md`.
 
 ## Engineering notes
 
