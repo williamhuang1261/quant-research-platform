@@ -18,12 +18,24 @@ jobs:
         with:
           python-version: '3.12'
 
+      # Optional dependency behind draft_root_cause_summary()'s LLM call --
+      # merge_gate.py already fails closed to its pre-Extension-14 behaviour
+      # if this package is ever missing, so a failed install here would not
+      # break the gate itself, only silence the extra summary section.
+      - name: Install optional LLM dependency
+        run: pip install anthropic
+
       # Non-zero only when a pinned golden-run literal changed with no
       # matching docs/ update in the same diff -- see tools/merge_gate.py's
       # own docstring for what this checks and its stated limitations.
       # Relies on GitHub Actions' default bash -eo pipefail so the pipe
       # into GITHUB_STEP_SUMMARY doesn't swallow merge_gate.py's exit code.
+      # ANTHROPIC_API_KEY is optional: unset (e.g. on a fork PR, which never
+      # receives repo secrets) or empty makes draft_root_cause_summary()
+      # return None and the output is identical to before Extension 14.
       - name: Check pinned golden-run numbers
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           python3 tools/merge_gate.py \
             "${{ github.event.pull_request.base.sha }}" \

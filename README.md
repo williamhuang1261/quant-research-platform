@@ -794,10 +794,18 @@ merge-automation tooling a code-review/CI-productivity product builds,
 run against a real risk signal this platform already had rather than one
 invented for the occasion.
 
+When a run is flagged, the gate optionally asks the Claude API to draft a
+short root-cause guess for the reviewer, printed under a section labelled
+`[AI-generated, verify before relying on it]`. It fails closed: with no
+`anthropic` package, no `ANTHROPIC_API_KEY` (a fork PR never gets one), or
+any API error, the output and exit code are unchanged from before this
+feature existed -- the LLM call can only add information, never change the
+gate's decision.
+
 See [`docs/spec-merge-gate.md`](docs/spec-merge-gate.md) for how the
-literal extraction works, its stated regex-vs-real-parser limitation, and
-what is deliberately not here (no PR-comment posting, no cross-language
-support).
+literal extraction works, its stated regex-vs-real-parser limitation, the
+LLM summary's fail-closed contract, and what is deliberately not here (no
+PR-comment posting, no cross-language support).
 
 ## Limitations
 

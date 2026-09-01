@@ -1,6 +1,7 @@
 # Spec — CI merge gate over pinned golden-run numbers (Extension 10)
 
-Status: implemented (Extension 10, steps 1-2)
+Status: implemented (Extension 10, steps 1-2; Extension 14 adds an optional
+LLM-drafted root-cause summary, see below)
 
 ## Why this exists
 
@@ -26,6 +27,7 @@ this platform already had.
 | R3 | Run on every pull request via GitHub Actions, printing a readable summary and failing the check on any flag |
 | R4 | No new dependency; stdlib only, matching `tools/energy_db.py`'s convention |
 | R5 | State the tool's real detection limitation rather than imply it understands Java |
+| R6 | (Extension 14) Optionally draft a root-cause summary via an LLM when a run is flagged, without ever letting the gate's pass/fail decision or its no-key/no-package output depend on that call succeeding |
 
 ## How it works (`tools/merge_gate.py`)
 
@@ -73,6 +75,19 @@ changing -- forbidding change entirely would make this platform's own
 extension history (which has legitimately moved pinned numbers before, each
 time with a doc explaining why) impossible to ship through its own gate.
 
+**D4 -- fail-closed, always (Extension 14).** `draft_root_cause_summary`
+never lets the gate's pass/fail decision depend on an LLM call succeeding.
+No `anthropic` package installed, no `ANTHROPIC_API_KEY` set (including the
+common case of a fork PR, which GitHub never hands repo secrets to), or any
+exception from the API call itself -- all three collapse to the same
+`None`, and the tool's output and exit code are then byte-for-byte
+identical to Extension 10's original behaviour. The summary, when it does
+appear, is printed under a section explicitly labelled `[AI-generated,
+verify before relying on it]`, the same authorship-labelling discipline
+`qrp-report`'s `OllamaNarrativeGenerator` already holds this platform to
+elsewhere: a generated guess must never be allowed to read as a human's
+analysis.
+
 ## What is deliberately not here
 
 - **Cross-repo or cross-language support.** The five golden-run files are
@@ -84,6 +99,59 @@ time with a doc explaining why) impossible to ship through its own gate.
   reviewer still reads the two lists to see what moved.
 - **PR-comment posting.** See D2.
 - **A real Java parser.** See D1.
+- **An LLM call that can affect the exit code.** See D4 -- the summary is
+  strictly additive output.
+
+## Extension 14 -- LLM-drafted root-cause summary
+
+Built for HP IQ's Software Engineering Intern, Product & Developer
+Productivity posting, which names JIRA triage, root-cause analysis and
+quality automation over pre-trained LLMs explicitly. This extension is the
+smallest additive step available in that direction: when the gate above
+already decided to block a PR, `draft_root_cause_summary` (in
+`tools/merge_gate.py`) sends the same before/after literal lists `main()`
+already prints to the Claude API and asks for a short root-cause guess and
+a suggested one-line docs/ note, told plainly that the literal lists are
+ordered but unlabelled (D1's own limitation) so the model does not
+overclaim precision the regex extraction never had. See D4 above for the
+fail-closed contract this call is held to.
+
+The `anthropic` package is an optional dependency (`pip install
+anthropic`), the first one this tool has taken on since Extension 10's
+original stdlib-only choice -- justified because no stdlib path reaches an
+LLM API. `.github/workflows/merge-gate.yml` installs it and forwards
+`ANTHROPIC_API_KEY` from an optional repo secret; a fork PR (which GitHub
+never hands repo secrets to) simply runs the gate exactly as Extension 10
+shipped it, with no summary section and no error.
+
+Verification for this extension focused on the fail-closed path, since no
+`ANTHROPIC_API_KEY` was available in the environment this was built in to
+also capture a live success-path transcript against the real API -- stated
+honestly rather than fabricated, the same convention this platform already
+holds its perf/valgrind-unavailable disclosure to. The success path's
+prompt construction and response parsing are instead covered by a mocked
+unit test (`test_returns_summary_text_on_success` in
+`tools/test_merge_gate.py`).
+
+Real transcript, a fresh disposable clone with a deliberately introduced,
+undocumented `tradeCount` drift (`11` -> `12`, no `docs/` change), run with
+`ANTHROPIC_API_KEY` unset:
+
+```
+$ python3 tools/merge_gate.py <before-sha> <after-sha>
+Golden-run merge gate: <before-sha>..<after-sha>
+
+- qrp-engine/.../BacktestIntegrationTest.java: FLAGGED: pinned value changed with no docs/ update
+    before: [504.0, 100000.0, 92229.0094522352, ..., 11.0, ...]
+    after:  [504.0, 100000.0, 92229.0094522352, ..., 12.0, ...]
+
+$ echo $?
+1
+```
+
+No `## AI-drafted root-cause summary` section appears -- exactly the
+Extension 10 output, confirming the fail-closed contract from a real git
+history, not just from a mock.
 
 ## Manual verification
 

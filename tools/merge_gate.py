@@ -27,11 +27,24 @@ Exits 0 if every changed golden-run file's diff is accompanied by a docs/
 change, non-zero otherwise. Falls back to $GITHUB_BASE_REF/$GITHUB_SHA when
 no refs are given on the command line, so it also runs unmodified inside
 the GitHub Actions workflow that wires it into pull_request checks.
+
+Optional: when a run is about to be flagged, draft_root_cause_summary()
+asks an LLM (the Claude API, via the optional `anthropic` package -- see
+tools/README.md) for a short root-cause guess to print alongside the raw
+literal lists. This is opt-in and fails closed: with no ANTHROPIC_API_KEY
+set, or the `anthropic` package not installed, or any API error, the tool's
+output and exit code are byte-for-byte what they were before this feature
+existed.
 """
 import os
 import re
 import subprocess
 import sys
+
+try:
+    import anthropic
+except ImportError:  # pragma: no cover - exercised by test_returns_none_without_package
+    anthropic = None
 
 GOLDEN_RUN_FILES = [
     "qrp-engine/src/test/java/io/github/williamhuang1261/qrp/engine/BacktestIntegrationTest.java",
@@ -95,6 +108,88 @@ def changed_docs(base_ref: str, head_ref: str) -> set[str]:
     return {line for line in result.stdout.splitlines() if line}
 
 
+_ROOT_CAUSE_PROMPT = """\
+A CI merge gate just flagged pull request {base_ref}..{head_ref} because a
+pinned "golden-run" numeric literal changed in a Java test file with no
+matching change under docs/ in the same diff. The literal lists below are
+ordered but unlabelled -- they come from a regex over assertEquals(...)
+calls, not a real parse, so a literal's position in the list is the only
+information available about which assertion it belongs to.
+
+{flagged_block}
+Accompanying docs/ changes in this diff: {docs}
+
+In 2-4 sentences, give the reviewer your best guess at what kind of change
+in the underlying behaviour would explain this drift, and suggest one short
+line for a docs/ note that would make the change legitimate. Be explicit
+that this is a guess from the numbers alone, not a diff of the actual code
+change.
+"""
+
+
+def _format_flagged_for_prompt(
+    base_ref: str,
+    head_ref: str,
+    flagged: dict[str, tuple[list[float], list[float]]],
+    docs: set[str],
+) -> str:
+    """Renders the same before/after literal lists main() already prints
+    into the plain-text block the root-cause prompt is built from -- the
+    prompt reads from data the tool already computed, not a second source
+    of truth."""
+    lines = []
+    for path, (before, after) in flagged.items():
+        lines.append(f"{path}:")
+        lines.append(f"  before: {before}")
+        lines.append(f"  after:  {after}")
+    return _ROOT_CAUSE_PROMPT.format(
+        base_ref=base_ref,
+        head_ref=head_ref,
+        flagged_block="\n".join(lines),
+        docs=sorted(docs) if docs else "none",
+    )
+
+
+def draft_root_cause_summary(
+    base_ref: str,
+    head_ref: str,
+    flagged: dict[str, tuple[list[float], list[float]]],
+    docs: set[str],
+) -> str | None:
+    """Asks an LLM to draft a short root-cause guess for a flagged golden-run
+    drift, for the reviewer to read alongside the raw before/after lists.
+
+    Fails closed, always: returns None -- never raises -- when the
+    `anthropic` package is not installed, when ANTHROPIC_API_KEY is unset,
+    or when the API call itself fails for any reason. The gate's pass/fail
+    decision never depends on this function succeeding; callers must treat
+    None as "no summary available" and fall back to the plain output that
+    already existed before this function did.
+    """
+    if anthropic is None:
+        return None
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-sonnet-5",
+            max_tokens=300,
+            messages=[
+                {
+                    "role": "user",
+                    "content": _format_flagged_for_prompt(
+                        base_ref, head_ref, flagged, docs
+                    ),
+                }
+            ],
+        )
+        return response.content[0].text.strip()
+    except Exception:
+        return None
+
+
 def main(argv: list[str]) -> int:
     base_ref = argv[1] if len(argv) > 1 else os.environ.get("GITHUB_BASE_REF")
     head_ref = argv[2] if len(argv) > 2 else os.environ.get("GITHUB_SHA")
@@ -125,6 +220,14 @@ def main(argv: list[str]) -> int:
     if docs:
         print(f"\nAccompanying docs/ changes: {sorted(docs)}")
     print()
+
+    if flagged:
+        summary = draft_root_cause_summary(base_ref, head_ref, changed, docs)
+        if summary is not None:
+            print("## AI-drafted root-cause summary")
+            print("[AI-generated, verify before relying on it]\n")
+            print(summary)
+            print()
 
     return 1 if flagged else 0
 

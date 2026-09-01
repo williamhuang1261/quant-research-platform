@@ -31,7 +31,11 @@ with no network and no account.
   `docs/spec-commodities.md`.
 - `merge_gate.py` -- diffs the five golden-run test files' pinned numeric
   literals between two git refs and flags any change with no matching
-  `docs/` update. Stdlib only. Run by hand (`python3 tools/merge_gate.py
-  <base> <head>`) or by the `merge-gate` GitHub Actions workflow on every
-  pull request; tested by `test_merge_gate.py`. See
-  `docs/spec-merge-gate.md`.
+  `docs/` update. Stdlib only for the diff itself. Run by hand (`python3
+  tools/merge_gate.py <base> <head>`) or by the `merge-gate` GitHub Actions
+  workflow on every pull request; tested by `test_merge_gate.py`. See
+  `docs/spec-merge-gate.md`. Optionally, when a run is flagged, drafts a
+  root-cause summary via the Claude API -- needs `anthropic` (`pip install
+  anthropic`) and an `ANTHROPIC_API_KEY` env var; without either, or on any
+  API error, the tool's output is unchanged from before this feature
+  existed.
