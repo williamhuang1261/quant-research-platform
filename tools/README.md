@@ -39,3 +39,10 @@ with no network and no account.
   anthropic`) and an `ANTHROPIC_API_KEY` env var; without either, or on any
   API error, the tool's output is unchanged from before this feature
   existed.
+- `amm_sim.py` -- refreshes `data/onchain/amm_swaps_<date>.csv` by deploying
+  `onchain/`'s constant-product AMM pool to a local Anvil node and driving a
+  fixed, seeded sequence of simulated swaps through it. Needs `web3`
+  (`pip install web3`) and Foundry's `forge`/`anvil` on PATH
+  (https://getfoundry.sh) -- run `forge build` in `onchain/` first so this
+  script has compiled ABIs/bytecode to deploy from. See
+  `data/onchain/README.md` and `docs/spec-onchain.md`.
