@@ -32,6 +32,7 @@
     <module>qrp-realassets</module>
     <module>qrp-warehouse</module>
     <module>qrp-feed</module>
+    <module>qrp-onchain</module>
   </modules>
 
   <properties>

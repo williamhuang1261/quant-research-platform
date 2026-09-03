@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.williamhuang1261.qrp</groupId>
+    <artifactId>qrp-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>qrp-onchain</artifactId>
+  <name>QRP :: On-chain</name>
+  <description>
+    An on-chain DeFi asset class for the platform: reads the swap history
+    ../onchain/'s constant-product AMM pool produced on a local Anvil fork
+    (via tools/amm_sim.py) and computes an LP's impermanent loss against a
+    hold-both-assets benchmark, plus the pool's cumulative fee income as a
+    stand-in for a market maker's captured spread.
+  </description>
+
+  <dependencies>
+    <!-- No dependency on qrp-data: the AMM swap CSV's schema (block number,
+         reserves, swap amounts) has nothing in common with the OHLCV bar
+         format CsvMarketDataProvider parses, so this module reads its own
+         CSV directly rather than forcing an unrelated schema into it. -->
+  </dependencies>
+</project>
