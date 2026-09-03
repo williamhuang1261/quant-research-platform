@@ -567,6 +567,20 @@ schema, the cache-key design (including two real gaps found and fixed
 before shipping — see the "what is deliberately not here" and design-
 decisions sections there) and its own stated limitations.
 
+## On-chain DeFi: a constant-product AMM pool, simulated trading, and LP economics
+
+A new asset class rather than an off-chain one: `onchain/src/ConstantProductPool.sol`
+is a real Uniswap-V2-style pool (Foundry unit and fuzz tests included),
+`tools/amm_sim.py` drives a seeded, reproducible sequence of swaps against
+it on a local Anvil node, and the new `qrp-onchain` module values a
+liquidity provider's resulting position: realized impermanent loss (the
+standard formula derived from the constant-product invariant) and
+cumulative fee income as a proxy for a market maker's captured spread —
+both checked against an independently computed golden run, not just
+against their own output. No real capital, testnet, or mainnet deployment
+is involved anywhere in this module. See
+[`docs/spec-onchain.md`](docs/spec-onchain.md).
+
 ## Architecture
 
 ```mermaid
