@@ -46,3 +46,11 @@ with no network and no account.
   (https://getfoundry.sh) -- run `forge build` in `onchain/` first so this
   script has compiled ABIs/bytecode to deploy from. See
   `data/onchain/README.md` and `docs/spec-onchain.md`.
+- `spark_etl.py` -- a PySpark ETL job: reads `data/sample/*.csv`,
+  deduplicates, normalizes the schema, and aggregates daily bars into
+  weekly OHLCV via a Spark SQL window-function query, guarded by an inline
+  data-quality check (row count, required-column nulls, duplicate keys)
+  before writing the result to `data/spark_mart/` as Parquet. Needs
+  `pyspark` (`pip install pyspark`) and a JDK on PATH, nothing else. Run as
+  a script (`python3 tools/spark_etl.py [sample_dir] [output_dir]`); tested
+  by `test_spark_etl.py`. See `data/spark_mart/README.md`.
