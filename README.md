@@ -175,6 +175,25 @@ rather than a cost-of-carry parameter, why the degenerate zero-volatility case
 is priced rather than rejected, and why `BondAnalytics` uses continuous
 compounding instead of the bond-market bond-equivalent convention.
 
+## Interest rate swaps and swaptions
+
+`SwapValuation` prices a plain-vanilla fixed-vs-floating swap off the same
+`RatesCurve` `BondAnalytics` uses: fixed leg PV, floating leg PV (a
+closed-form single-curve identity), par swap rate, and DV01 via a closed-form
+parallel-shift bump. `SwaptionPricer` prices European payer/receiver
+swaptions under Black-76 on the forward par rate, reusing
+`BlackScholesMerton`'s `d1`/`d2` moneyness machinery rather than a second
+formula, scaled by the swap's dollar annuity.
+
+A $10M notional, 5-year swap off an upward-sloping curve (1y 4.0%, 5y 4.5%,
+10y 5.0%) prices to a 4.5275% par rate, a $234,749 payer PV at a 4% coupon,
+and a $4,464 DV01. A 2-year-into-5-year payer swaption at that swap's 4.5%
+strike and 25% flat volatility is worth $288,016; the payer-minus-receiver
+parity identity `Annuity * (F - K)` matches to 1e-11. See
+[`docs/spec-swaps.md`](docs/spec-swaps.md) for the single-curve
+simplification, why the annuity is deliberately per-unit-notional, and a real
+notional-scaling bug the parity test caught while this was built.
+
 ## Fund comparison: fees, risk-ranked returns, a plain-English narrative
 
 ```
