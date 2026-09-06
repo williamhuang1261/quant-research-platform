@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.williamhuang1261.qrp</groupId>
+    <artifactId>qrp-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>qrp-equity</artifactId>
+  <name>QRP :: Equity Research</name>
+  <description>
+    Applied equity valuation over real company fundamentals: a discounted
+    cash flow off the platform's own Treasury curve and a comparable-multiples
+    check, assembled into short written research notes. The "grow a cash
+    flow, discount it, add a terminal value" shape qrp-realassets already
+    applies to real estate, here applied to a public company instead.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-options</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+</project>
