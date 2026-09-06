@@ -54,3 +54,7 @@ with no network and no account.
   `pyspark` (`pip install pyspark`) and a JDK on PATH, nothing else. Run as
   a script (`python3 tools/spark_etl.py [sample_dir] [output_dir]`); tested
   by `test_spark_etl.py`. See `data/spark_mart/README.md`.
+- `fetch_equity_fundamentals.py` -- refreshes `data/equity/fundamentals_<date>.csv`
+  and `data/equity/comps_<date>.csv` from Yahoo Finance for a small, fixed
+  set of real tickers. Needs `yfinance` (`pip install yfinance`). See
+  `data/equity/README.md` and `docs/spec-equity-research.md`.

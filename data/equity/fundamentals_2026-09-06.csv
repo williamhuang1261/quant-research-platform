@@ -1,0 +1,3 @@
+ticker,company_name,sector,fetch_date,total_revenue,trailing_eps,net_margin,diluted_shares_outstanding,trailing_pe,current_price,free_cash_flow
+AAPL,Apple Inc.,Technology,2026-09-06,466822987776,8.74,0.27618998,14594180000,36.60984,319.97,107721875456
+MSFT,Microsoft Corporation,Technology,2026-09-06,331839012864,17.94,0.40305,7425545491,27.853958,499.7,16545500160
