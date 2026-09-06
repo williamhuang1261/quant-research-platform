@@ -96,7 +96,7 @@ public final class EquityResearchNoteGenerator {
     }
 
     private static String usd(double value) {
-        return String.format(Locale.ROOT, "$%,.0f", value);
+        return String.format(Locale.ROOT, "$%,.1fB", value / 1_000_000_000.0);
     }
 
     private static String usdPerShare(double value) {

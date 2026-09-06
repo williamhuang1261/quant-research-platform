@@ -194,6 +194,25 @@ parity identity `Annuity * (F - K)` matches to 1e-11. See
 simplification, why the annuity is deliberately per-unit-notional, and a real
 notional-scaling bug the parity test caught while this was built.
 
+## Equity research: DCF and comps valuation over real fundamentals, written up
+
+`qrp-equity` values real, named companies (not the platform's usual synthetic
+tickers): a discounted free-cash-flow estimate off the same `RatesCurve` used
+for bonds and swaps, plus an independent comparable-multiples check against
+real peer P/E ratios, assembled by `EquityResearchNoteGenerator` into a short
+Markdown research note with a hand-written catalyst/thesis paragraph and key
+risks -- the written half of equity research, not just the arithmetic.
+
+Two finished notes are committed under
+[`samples/equity-research/`](samples/equity-research/): [`AAPL.md`](samples/equity-research/AAPL.md)
+and [`MSFT.md`](samples/equity-research/MSFT.md). Both value their company
+below its current trading price, which the notes explain rather than hide:
+a DCF anchored to trailing free cash flow is a conservative floor for a
+mega-cap compounder priced on forward growth, not a claim that the market is
+wrong. See [`docs/spec-equity-research.md`](docs/spec-equity-research.md) for
+the discount-rate assumption, the worked numbers behind both notes, and what
+this module does not do.
+
 ## Fund comparison: fees, risk-ranked returns, a plain-English narrative
 
 ```
