@@ -54,6 +54,11 @@ public final class SwapValuation {
         return fixedLegTimes[fixedLegTimes.length - 1];
     }
 
+    /** The swap's notional. */
+    public double notional() {
+        return notional;
+    }
+
     /** PV of the fixed leg: the coupon schedule discounted off the curve. */
     public double fixedLegPv() {
         double accrual = 1.0 / 2.0;
@@ -81,7 +86,15 @@ public final class SwapValuation {
         return floatingLegPv() - fixedLegPv();
     }
 
-    /** The level/annuity: sum of {@code accrual * DF(t)} over the fixed leg, the value of a 1-rate-unit coupon stream. */
+    /**
+     * The level/annuity <b>per unit notional</b>: sum of {@code accrual *
+     * DF(t)} over the fixed leg, the value of a 1-rate-unit coupon stream on
+     * a $1 notional. Deliberately excludes {@link #notional()} so that
+     * {@link #parRate()} -- {@code (1 - DF(T)) / annuity()} -- divides two
+     * per-unit quantities and the notional cancels cleanly. A caller pricing
+     * a dollar annuity (e.g. a swaption payoff) multiplies this by {@link
+     * #notional()} itself; see {@link SwaptionPricer}.
+     */
     public double annuity() {
         double accrual = 1.0 / 2.0;
         double level = 0.0;

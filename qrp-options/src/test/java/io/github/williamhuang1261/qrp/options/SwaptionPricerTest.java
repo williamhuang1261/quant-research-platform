@@ -60,8 +60,8 @@ class SwaptionPricerTest {
         double strike = forward - 0.01;
 
         double payer = SwaptionPricer.price(OptionType.CALL, swap, strike, 2.0, 0.0, 0.04);
-        double expected = swap.annuity() * Math.max(forward - strike, 0.0);
-        assertEquals(expected, payer, 1e-9);
+        double expected = swap.notional() * swap.annuity() * Math.max(forward - strike, 0.0);
+        assertEquals(expected, payer, 1e-6);
     }
 
     @Test
@@ -73,6 +73,19 @@ class SwaptionPricerTest {
         double lowVol = SwaptionPricer.price(OptionType.CALL, swap, forward, 2.0, 0.10, 0.04);
         double highVol = SwaptionPricer.price(OptionType.CALL, swap, forward, 2.0, 0.50, 0.04);
         assertTrue(highVol > lowVol);
+    }
+
+    @Test
+    @DisplayName("swaption value scales with notional, not just the per-unit annuity")
+    void swaptionValueScalesWithNotional() {
+        RatesCurve curve = flatCurve(0.04);
+        SwapValuation small = SwapValuation.of(1_000_000.0, 0.04, 5.0, curve);
+        SwapValuation large = SwapValuation.of(5_000_000.0, 0.04, 5.0, curve);
+        double strike = small.parRate() + 0.005;
+
+        double smallPrice = SwaptionPricer.price(OptionType.CALL, small, strike, 2.0, 0.25, 0.04);
+        double largePrice = SwaptionPricer.price(OptionType.CALL, large, strike, 2.0, 0.25, 0.04);
+        assertEquals(smallPrice * 5.0, largePrice, 1e-6);
     }
 
     @Test

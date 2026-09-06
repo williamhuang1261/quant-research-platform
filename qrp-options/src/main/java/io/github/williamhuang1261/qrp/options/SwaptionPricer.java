@@ -22,7 +22,9 @@ import io.github.williamhuang1261.qrp.stats.NormalDistribution;
  * payoff is an annuity of {@code |F - K|} received across the swap's whole
  * remaining life, not a single date. So this class does not call {@link
  * BlackScholesMerton#price}; it takes {@code d1}/{@code d2} from there and
- * scales by {@link SwapValuation#annuity()} itself.
+ * scales by {@link SwapValuation#annuity()} itself, multiplied by {@link
+ * SwapValuation#notional()} since {@code annuity()} is deliberately a
+ * per-unit-notional quantity (see its javadoc).
  *
  * <p><b>Flat volatility, not a fitted surface.</b> {@link VolatilitySurface}
  * is built from a chain of market option quotes; this module has no
@@ -66,7 +68,7 @@ public final class SwaptionPricer {
         requireArguments(type, swap, strike, expiryYears, flatVolatility);
 
         double forward = swap.parRate();
-        double annuity = swap.annuity();
+        double annuity = swap.notional() * swap.annuity();
 
         BlackScholesInputs inputs = BlackScholesInputs.future(
                 forward, strike, expiryYears, flatVolatility, riskFreeRate);
@@ -97,7 +99,7 @@ public final class SwaptionPricer {
             SwapValuation swap, double strike, double expiryYears, double flatVolatility, double riskFreeRate) {
         double payer = price(OptionType.CALL, swap, strike, expiryYears, flatVolatility, riskFreeRate);
         double receiver = price(OptionType.PUT, swap, strike, expiryYears, flatVolatility, riskFreeRate);
-        double expected = swap.annuity() * (swap.parRate() - strike);
+        double expected = swap.notional() * swap.annuity() * (swap.parRate() - strike);
         return (payer - receiver) - expected;
     }
 
