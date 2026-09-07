@@ -31,5 +31,14 @@
       <artifactId>qrp-engine</artifactId>
       <version>${project.version}</version>
     </dependency>
+
+    <!-- Test scope only: loads the real SYNA_1d.csv sample data for the
+         generator/execution-model tests. Main code never depends on qrp-data. -->
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-data</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>
