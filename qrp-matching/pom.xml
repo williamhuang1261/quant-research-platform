@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.williamhuang1261.qrp</groupId>
+    <artifactId>qrp-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>qrp-matching</artifactId>
+  <name>QRP :: Matching Engine</name>
+  <description>
+    A price-time-priority limit order book matching engine: real resting
+    orders, crossing, partial fills and cancellation, distinct from
+    qrp-engine's single-bar SyntheticOrderBook heuristic. Plugs into the
+    existing ExecutionModel SPI so the backtest engine can route orders
+    through it.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-engine</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+</project>
