@@ -680,6 +680,7 @@ boundary is enforced by the build rather than described in a document.
 | `qrp-data` | CSV provider, manifest format, synthetic sample generator | [spec](docs/spec-data.md) |
 | `qrp-indicators` | SMA, EMA, RSI, rolling volatility, DuPont, CPI real-price adjuster | [spec](docs/spec-indicators.md) |
 | `qrp-engine` | Event-driven bar loop, cost model, portfolio accounting, metrics, pluggable `ExecutionModel` (market-open, limit-order-book) | [spec](docs/spec-engine.md), [spec](docs/spec-execution.md) |
+| `qrp-matching` | Price-time-priority limit order book matching engine: resting orders, crossing, partial fills, cancellation; a third `ExecutionModel` fed by synthetic order flow off the sample OHLCV data | [spec](docs/spec-matching.md) |
 | `qrp-stats` | Block bootstrap, Monte Carlo paths, jackknife correlation, VaR/ES | [spec](docs/spec-stats.md) |
 | `qrp-options` | Black-Scholes-Merton, binomial trees, Monte Carlo, implied vol, the surface, no-arbitrage diagnostics, the Treasury curve | [spec](docs/spec-options.md) |
 | `qrp-report` | `ManagementFeeModel`, `FundComparisonTable` (fee-adjusted, risk-ranked returns vs. a benchmark), template and optional-Ollama `NarrativeGenerator` | [spec](docs/spec-report.md) |
