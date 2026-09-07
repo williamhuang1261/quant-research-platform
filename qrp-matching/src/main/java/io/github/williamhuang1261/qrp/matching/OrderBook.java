@@ -99,6 +99,10 @@ final class OrderBook {
         return levels(side).isEmpty();
     }
 
+    boolean contains(long orderId) {
+        return byId.containsKey(orderId);
+    }
+
     private NavigableMap<Double, Deque<Order>> levels(Side side) {
         return side == Side.BUY ? bids : asks;
     }
