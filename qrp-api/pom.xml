@@ -46,6 +46,12 @@
       <artifactId>qrp-warehouse</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <!-- The P&L attribution endpoint's own decomposition; see qrp-pnl. -->
+    <dependency>
+      <groupId>io.github.williamhuang1261.qrp</groupId>
+      <artifactId>qrp-pnl</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
