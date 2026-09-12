@@ -33,7 +33,9 @@
 
     <!-- Test scope only: loads the real SYNA_1d.csv sample data and the
          sma-crossover strategy for the reconciliation-against-a-real-run
-         test. Main code never depends on either. -->
+         test. Main code never depends on either. qrp-indicators is what
+         actually provides the "sma" indicator the strategy resolves through
+         PluginRegistry at runtime. -->
     <dependency>
       <groupId>io.github.williamhuang1261.qrp</groupId>
       <artifactId>qrp-data</artifactId>
