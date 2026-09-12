@@ -35,6 +35,7 @@
     <module>qrp-onchain</module>
     <module>qrp-equity</module>
     <module>qrp-matching</module>
+    <module>qrp-pnl</module>
   </modules>
 
   <properties>
